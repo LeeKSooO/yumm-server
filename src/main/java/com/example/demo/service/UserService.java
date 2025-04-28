@@ -54,4 +54,10 @@ public class UserService {
         return userRepository.findById(userId)
             .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
     }
+
+    public User getMyInfoByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+    }
+    
 }
