@@ -103,6 +103,25 @@ public class UserService {
         userRepository.save(user);
     }
 
+    // logout
+    // 로그아웃 처리 : 전잘된 JWT 토큰을 블랙리스트에 등록하고 남은 만료 기간 동안 재사용을 막는다.
+    /*
+    public void logout(String token) {
+        // 토큰이 유효한지 파싱해보고 남은 TTL을 계산
+        long expiresAt = jwtUtil.getExpiration(token);
+        long now  = System.currentTimeMillis();
+        long ttlMillis = Math.max(0, expiresAt - now);
+
+        // Redis나 DB에 (token, 블랙리스트 표시) 형태로 저장
+        blacklistRepo.add(token, ttlMillis);
+    }
+
+    public void deleteRefreshToken(String deleteRefreshToken) {
+        refreshTokenRepo.deleteById(refreshToken);
+    }
+    */
+
+
     // 내 정보 조회(admin전용 userId 기준으로 search)
     /*
     public User getMyInfo(Long userId) {
