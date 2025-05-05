@@ -1,6 +1,8 @@
 package com.example.demo.service;
 
+import com.example.demo.domain.RefreshToken;
 import com.example.demo.domain.User;
+import com.example.demo.repository.RefreshTokenRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.dto.ChangePasswordRequestDto;
 import com.example.demo.dto.SignupRequestDto;
@@ -8,19 +10,21 @@ import com.example.demo.dto.UserInfoResponseDto;
 import com.example.demo.dto.UpdateUserInfoDto;
 //import com.example.demo.dto.ChangePasswordRequestDto;
 import org.springframework.http.HttpStatus;
-import com.example.demo.util.JwtUtil;
+import com.example.demo.util.JwtUtils;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-//import java.util.Optional;
-
 @Service // 비즈니스 로직을 처리하는 서비스 계층
+@Transactional
 @RequiredArgsConstructor // final로 선언된 필드를 자동으로 생성자 주입
 public class UserService {
     private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
+    private final RefreshTokenRepository rfTokenRepo;
+    private final JwtUtils jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // signup
@@ -41,19 +45,6 @@ public class UserService {
             .build();
 
         return userRepository.save(newUser);
-    }
-
-    // login
-    // rawPassword(평문)와 BCrpytPasswordEncoder를 사용하여 암호화한 비밀번호를 비교하는 방식
-    public String login(String username, String rawPassword) {
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
-
-        if(!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
-        }
-
-        return jwtUtil.generateToken(username);
     }
 
     // getMyInfo
@@ -103,6 +94,59 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * 회원 탈퇴: 
+     * 1) 해당 사용자의 모든 리프레시 토큰을 삭제하고,
+     * 2) 사용자 엔티티를 삭제합니다.
+     *
+     * username 탈퇴할 사용자의 아이디
+     */
+    public void withdraw(String username) {
+        // 1) 해당 사용자의 리프레시 토큰 전부 삭제
+        rfTokenRepo.deleteAllByUsername(username);
+
+        // 2) 사용자 엔티티 삭제
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        userRepository.delete(user);
+    }
+}
+
+    // login
+    // rawPassword(평문)와 BCrpytPasswordEncoder를 사용하여 암호화한 비밀번호를 비교하는 방식
+    /*
+    public String login(String username, String rawPassword) {
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        if(!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        }
+
+        return jwtUtil.generateAccessToken(username);
+    }
+    */
+
+    // logout
+    // 로그아웃 처리 : 전잘된 JWT 토큰을 블랙리스트에 등록하고 남은 만료 기간 동안 재사용을 막는다.
+    /*
+    public void logout(String token) {
+        // 토큰이 유효한지 파싱해보고 남은 TTL을 계산
+        long expiresAt = jwtUtil.getExpiration(token);
+        long now  = System.currentTimeMillis();
+        long ttlMillis = Math.max(0, expiresAt - now);
+
+        // Redis나 DB에 (token, 블랙리스트 표시) 형태로 저장
+        blacklistRepo.add(token, ttlMillis);
+    }
+
+    public void deleteRefreshToken(String deleteRefreshToken) {
+        refreshTokenRepo.deleteById(refreshToken);
+    }
+    */
+
+
     // 내 정보 조회(admin전용 userId 기준으로 search)
     /*
     public User getMyInfo(Long userId) {
@@ -110,5 +154,3 @@ public class UserService {
             .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
     }
     */
-
-}

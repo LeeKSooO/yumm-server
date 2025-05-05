@@ -27,23 +27,20 @@ public class User {
     
     private Long id; // 회원 고유 식별 번호 (자동 증가)
 
-    // DB Column설정 : null 허용 안하고(unique), 값이 중복되면 안 됨
     @Column(nullable = false, unique = true)
     private String username; // 사용자 ID (중복 불가)
 
-    // DB Column Config : Not Null
     @Column(nullable = false)
-    private String password; // 비밀번호
+    private String password;
     
     @Column(nullable = false)
-    private String name; // 사용자 이름
+    private String name;
 
     @Column(nullable = false)
-    private String phone; // 핸드폰 번호
+    private String phone;
 
-    // DB Column Config : Not Null
-    @Column(nullable = false, unique = true)
-    private String email; // 이메일
+    @Column(nullable = false, unique = true) // 중복 불가
+    private String email;
 
     @Column(nullable = false)
     private String role; // 사용자 권한 (ex: ROLE_USER, ROLE_ADMIN)
