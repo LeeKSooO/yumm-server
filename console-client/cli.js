@@ -18,9 +18,7 @@ client.interceptors.response.use(
       console.log(`❌ [RESPONSE] ${response?.status} ${config.url}`);      // 에러 응답 찍기
       if (response?.status === 401 && !config._retry) {
         config._retry = true;
-        console.log('401 감지 → 액세스 토큰 만료, 재발급 시도');
         await doRefresh();
-        console.log('✔ doRefresh() 완료, 재시도 준비:', tokens.accessToken);
 
         // 새로 발급받은 accessToken 헤더에 설정
         config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
