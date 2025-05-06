@@ -18,9 +18,11 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtil;
+    private final CustomUserDetailsService userDetailsService;
 
-    public JwtAuthenticationFilter(JwtUtils jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtils jwtUtil, CustomUserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -28,6 +30,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain)
                                     throws ServletException, IOException {
+
+        System.out.println("[JWT Filter] 필터 실행됨: " + request.getRequestURI());
+   
 
         String authHeader = request.getHeader("Authorization");
 
@@ -42,8 +47,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 //토큰이 유효하면 사용자 이름 추출 후 인증 객체 생성
                 String username = jwtUtil.getUsernameFromToken(token);
+                CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
+
                 UsernamePasswordAuthenticationToken authentication = 
-                        new UsernamePasswordAuthenticationToken(username, null, null);
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
