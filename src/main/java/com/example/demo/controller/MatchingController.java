@@ -23,32 +23,32 @@ public class MatchingController {
     private final MatchingService matchingService;
 
     // 매칭 요청
-    @PostMapping("/wait")
-    public ResponseEntity<MatchResponseDto> requestMatching(
-        @AuthenticationPrincipal CustomUserDetails userDetails,
-        @RequestBody MatchRequestDto matchRequestDto
-        ) {            
-            Long userId = userDetails.getId();
-            int count = matchRequestDto.getCount();
-            Long roomId = matchingService.requestMatching(userId, count);
+    // @PostMapping("/wait")
+    // public ResponseEntity<MatchResponseDto> requestMatching(
+    //     @AuthenticationPrincipal CustomUserDetails userDetails,
+    //     @RequestBody MatchRequestDto matchRequestDto
+    //     ) {            
+    //         Long userId = userDetails.getId();
+    //         int count = matchRequestDto.getCount();
+    //         // Long roomId = matchingService.requestMatching(userId, count);
 
-            System.out.println("[DEBUG] userDetails: " + userDetails);
-            System.out.println("[DEBUG] Access Token 인증된 사용자 ID: " + (userDetails != null ? userDetails.getId() : "null"));
+    //         System.out.println("[DEBUG] userDetails: " + userDetails);
+    //         System.out.println("[DEBUG] Access Token 인증된 사용자 ID: " + (userDetails != null ? userDetails.getId() : "null"));
 
-            if (roomId != null) {
-                return ResponseEntity.ok(
-                    MatchResponseDto.builder()
-                        .roomId(roomId)
-                        .status("matched")
-                        .build()
-                );
-            } else {
-                return ResponseEntity.ok(
-                    MatchResponseDto.builder()
-                        .roomId(null)
-                        .status("waiting")
-                        .build()
-                );
-            }
-    }
+    //         if (roomId != null) {
+    //             return ResponseEntity.ok(
+    //                 MatchResponseDto.builder()
+    //                     .roomId(roomId)
+    //                     .status("matched")
+    //                     .build()
+    //             );
+    //         } else {
+    //             return ResponseEntity.ok(
+    //                 MatchResponseDto.builder()
+    //                     .roomId(null)
+    //                     .status("waiting")
+    //                     .build()
+    //             );
+    //         }
+    // }
 }
