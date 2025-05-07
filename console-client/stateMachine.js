@@ -15,7 +15,8 @@ const STATES = {
     UPDATE_MY_INFO: 'updateMyInfo',
     CHANGE_PW:      'changePW',
     WITHDRAW:       'withdraw',
-    LOGOUT:         'logout'
+    LOGOUT:         'logout',
+    MATCHING:       'matching'
   };
   
   const TRANSITIONS = {
@@ -32,7 +33,8 @@ const STATES = {
       [EVENTS.UPDATE_MY_INFO]: STATES.AUTHENTICATED,
       [EVENTS.CHANGE_PW]:      STATES.AUTHENTICATED,
       [EVENTS.WITHDRAW]:       STATES.UNAUTHENTICATED,
-      [EVENTS.LOGOUT]:         STATES.DEFAULT        // 변경: 로그아웃 → default
+      [EVENTS.LOGOUT]:         STATES.DEFAULT,        // 변경: 로그아웃 → default
+      [EVENTS.MATCHING]:       STATES.AUTHENTICATED 
     }
   };
   

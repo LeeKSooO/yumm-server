@@ -36,7 +36,8 @@ const API = {
   changePW:     'http://localhost:8080/api/user/password',
   logout:       'http://localhost:8080/api/auth/logout',
   withdraw:     'http://localhost:8080/api/user/withdraw',
-  refresh:      'http://localhost:8080/api/auth/refresh'
+  refresh:      'http://localhost:8080/api/auth/refresh',
+  matching:     'http://localhost:8080/api/matching/wait'
 };
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -88,7 +89,8 @@ async function run() {
           { num: '2', label: 'updateMyInfo', event: EVENTS.UPDATE_MY_INFO },
           { num: '3', label: 'changePW',     event: EVENTS.CHANGE_PW       },
           { num: '4', label: 'logout',       event: EVENTS.LOGOUT         },
-          { num: '5', label: 'withdraw',     event: EVENTS.WITHDRAW       }
+          { num: '5', label: 'withdraw',     event: EVENTS.WITHDRAW       },
+          { num: '6', label: 'matching',     event: EVENTS.MATCHING       }
         ];
       }
       menu.forEach(item => console.log(`${item.num}) ${item.label}`));
@@ -110,6 +112,7 @@ async function run() {
           case EVENTS.CHANGE_PW:      await doChangePW();     break;
           case EVENTS.LOGOUT:         await doLogout();       break;
           case EVENTS.WITHDRAW:       await doWithdraw();     break;
+          case EVENTS.MATCHING:       await doMatching();     break;
         }
 
         // 상태 전이
@@ -251,6 +254,22 @@ async function doRefresh() {
     );
     tokens.accessToken = res.data.accessToken;
     console.log('⟳ 액세스 토큰 재발급 완료');
+}
+
+async function doMatching() {
+  const count = await question("희망 매칭 인원 수(2~4): ");
+  const res = await client.post(
+    API.matching, 
+    { count : parseInt(count) },
+    { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
+  );
+
+  const data = res.data;
+  if (data.status === 'matched') {
+      console.log(`✅ 매칭 완료! 채팅방 ID: ${data.roomId}`);
+  } else {
+      console.log(`⏳ 매칭 대기 중... 다른 사용자가 접속하면 자동으로 방이 만들어집니다.`);
+  }
 }
 
 
