@@ -2,32 +2,37 @@ package com.example.demo.service;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.domain.ChatRoom;
+import com.example.demo.domain.User;
+import com.example.demo.repository.ChatRoomRepository;
+
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class ChatRoomService {
 
-    private final AtomicLong roomIdCounter = new AtomicLong(1);
-    //private final ChatRoom chatRoom;
+    private final ChatRoomRepository chatRoomRepository;
 
-    public Long createRoom(Long matchingId, List<Long> matchedUsers) {
+    public Long createRoom(Long matchingId, List<User> matchedUsers) {
 
-        // UUID 기반 ChatRoom 생성
-        // ChatRoom Entity에 필요한 정보 저장.
-        // ChatRoom ID 리턴
+        ChatRoom room = new ChatRoom();
 
-        
+        room.setRoomId(UUID.randomUUID().toString());
+        room.setParticipants(matchedUsers);
+        room.setMaxUserCount(matchedUsers.size());
 
+        System.out.println("[DEBUG] ChatRoom 생성됨 - matchingId=" + matchingId);
+        System.out.println("Participants:");
+        for (User u : matchedUsers) {
+            System.out.println(" - userId=" + u.getId());
+        }
 
+        chatRoomRepository.save(room);
+        System.out.println("[DEBUG] ChatRoom 저장 완료: id=" + room.getId() + ", roomId=" + room.getRoomId());
 
-
-
-        // return roomId for test
-        Long roomId = roomIdCounter.getAndIncrement();
-
-        return roomId;
+        return room.getId();
     }
 }
