@@ -15,9 +15,9 @@ import com.example.demo.service.MatchingService;
 import lombok.RequiredArgsConstructor;
 
 
-@RestController // 이 클래스가 REST API를 처리하는 컨트롤러임을 명시
-@RequestMapping("/api/matching") // Common URL Prefix 설정
-@RequiredArgsConstructor // final field 자동 주입
+@RestController  
+@RequestMapping("/api/matching")
+@RequiredArgsConstructor
 public class MatchingController {
 
     private final MatchingService matchingService;
@@ -30,10 +30,8 @@ public class MatchingController {
         ) {            
             Long userId = userDetails.getId();
             int count = matchRequestDto.getCount();
-            Long roomId = matchingService.requestMatching(userId, count);
 
-            System.out.println("[DEBUG] userDetails: " + userDetails);
-            System.out.println("[DEBUG] Access Token 인증된 사용자 ID: " + (userDetails != null ? userDetails.getId() : "null"));
+            Long roomId = matchingService.requestMatching(userId, count);
 
             if (roomId != null) {
                 return ResponseEntity.ok(
