@@ -16,7 +16,7 @@ public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
 
-    public Long createRoom(Long matchingId, List<User> matchedUsers) {
+    public String createRoom(Long matchingId, List<User> matchedUsers) {
 
         ChatRoom room = new ChatRoom();
 
@@ -33,6 +33,6 @@ public class ChatRoomService {
         chatRoomRepository.save(room);
         System.out.println("[DEBUG] ChatRoom 저장 완료: id=" + room.getId() + ", roomId=" + room.getRoomId());
 
-        return room.getId();
+        return room.getRoomId();
     }
 }
