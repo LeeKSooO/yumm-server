@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,17 +23,35 @@ public class MatchingController {
 
     private final MatchingService matchingService;
 
-    // 매칭 요청
+
+    // 매칭 요청 : 대기 큐에 추가
     @PostMapping("/wait")
-    public ResponseEntity<MatchResponseDto> requestMatching(
+    public ResponseEntity<Void> requestMatching(
         @AuthenticationPrincipal CustomUserDetails userDetails,
         @RequestBody MatchRequestDto matchRequestDto
         ) {            
             Long userId = userDetails.getId();
             int count = matchRequestDto.getCount();
 
-            Long roomId = matchingService.requestMatching(userId, count);
+            matchingService.requestMatching(userId, count);
+            return ResponseEntity.ok().build(); 
+    }
 
+    @GetMapping("/status")
+    public ResponseEntity<MatchResponseDto> checkStatus(
+        @AuthenticationPrincipal CustomUserDetails userDetails) {
+        
+        MatchResponseDto result = matchingService.checkMatchingStatus(userDetails.getId());
+        return ResponseEntity.ok(result);
+    }
+}
+
+
+
+
+            //Long roomId = matchingService.requestMatching(userId, count);
+
+            /* 
             if (roomId != null) {
                 return ResponseEntity.ok(
                     MatchResponseDto.builder()
@@ -48,5 +67,4 @@ public class MatchingController {
                         .build()
                 );
             }
-    }
-}
+             */
