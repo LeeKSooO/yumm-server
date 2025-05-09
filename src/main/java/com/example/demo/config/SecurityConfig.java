@@ -48,7 +48,10 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/user/signup").permitAll() // 로그인, 회원가입은 허용
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/api/user/signup",
+                    "/ws/**").permitAll() // 로그인, 회원가입, WebSocket 허용
                 .anyRequest().authenticated() // 나머지는 인증 필요
             )
             .exceptionHandling(ex -> ex

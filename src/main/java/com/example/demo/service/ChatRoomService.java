@@ -1,22 +1,38 @@
 package com.example.demo.service;
 import org.springframework.stereotype.Service;
-import java.util.List;
 
-import java.util.concurrent.atomic.AtomicLong;
+import com.example.demo.domain.ChatRoom;
+import com.example.demo.domain.User;
+import com.example.demo.repository.ChatRoomRepository;
+
+import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class ChatRoomService {
 
-    private final AtomicLong roomIdCounter = new AtomicLong(1);
+    private final ChatRoomRepository chatRoomRepository;
 
-    public Long createRoom(Long matchingId, List<Long> matchedUsers) {
+    public String createRoom(Long matchingId, List<User> matchedUsers) {
 
-        System.out.println("✅ CreateChattingRoom - matchingId: " + matchingId +
-                           ", users: " + matchedUsers);
-        
-        // return roomId for test
-        Long roomId = roomIdCounter.getAndIncrement();
+        ChatRoom room = new ChatRoom();
 
-        return roomId;
+        room.setRoomId(UUID.randomUUID().toString());
+        room.setParticipants(matchedUsers);
+        room.setMaxUserCount(matchedUsers.size());
+
+        System.out.println("[DEBUG] ChatRoom 생성됨 - matchingId=" + matchingId);
+        System.out.println("Participants:");
+        for (User u : matchedUsers) {
+            System.out.println(" - userId=" + u.getId());
+        }
+
+        chatRoomRepository.save(room);
+        System.out.println("[DEBUG] ChatRoom 저장 완료: id=" + room.getId() + ", roomId=" + room.getRoomId());
+
+        return room.getRoomId();
     }
 }
