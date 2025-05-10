@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class MatchingService {
     private final MatchingRepository matchingRepo;
     private final UserRepository userRepo;
     private final ChatRoomService chatRoomService;
+    private final UserRepository userRepository;
 
     /** 30초 대기 후 지역매치 */
     private static final Duration REGION_THRESHOLD = Duration.ofSeconds(30);
@@ -78,4 +81,5 @@ public class MatchingService {
             }
         }
     }
+
 }

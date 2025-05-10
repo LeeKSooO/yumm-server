@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,41 +15,24 @@ import com.example.demo.service.MatchingService;
 
 import lombok.RequiredArgsConstructor;
 
-
-@RestController // 이 클래스가 REST API를 처리하는 컨트롤러임을 명시
-@RequestMapping("/api/matching") // Common URL Prefix 설정
-@RequiredArgsConstructor // final field 자동 주입
+@RestController
+@RequestMapping("/api/matching")
+@RequiredArgsConstructor
 public class MatchingController {
 
     private final MatchingService matchingService;
 
-    // 매칭 요청
+    // 매칭 요청 : 대기 큐에 추가
     // @PostMapping("/wait")
-    // public ResponseEntity<MatchResponseDto> requestMatching(
-    //     @AuthenticationPrincipal CustomUserDetails userDetails,
-    //     @RequestBody MatchRequestDto matchRequestDto
-    //     ) {            
-    //         Long userId = userDetails.getId();
-    //         int count = matchRequestDto.getCount();
-    //         // Long roomId = matchingService.requestMatching(userId, count);
+    // public ResponseEntity<Void> requestMatching(
+    // @AuthenticationPrincipal CustomUserDetails userDetails,
+    // @RequestBody MatchRequestDto matchRequestDto
+    // ) {
+    // Long userId = userDetails.getId();
+    // int count = matchRequestDto.getCount();
 
-    //         System.out.println("[DEBUG] userDetails: " + userDetails);
-    //         System.out.println("[DEBUG] Access Token 인증된 사용자 ID: " + (userDetails != null ? userDetails.getId() : "null"));
-
-    //         if (roomId != null) {
-    //             return ResponseEntity.ok(
-    //                 MatchResponseDto.builder()
-    //                     .roomId(roomId)
-    //                     .status("matched")
-    //                     .build()
-    //             );
-    //         } else {
-    //             return ResponseEntity.ok(
-    //                 MatchResponseDto.builder()
-    //                     .roomId(null)
-    //                     .status("waiting")
-    //                     .build()
-    //             );
-    //         }
+    // matchingService.requestMatching(userId, count);
+    // return ResponseEntity.ok().build();
     // }
+
 }

@@ -42,6 +42,7 @@ const API = {
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const question = q => new Promise(res => rl.question(q, res));
+const { startChat } = require('./chatClient');
 
 let state, actor, tokens;
 
@@ -258,20 +259,39 @@ async function doRefresh() {
 
 async function doMatching() {
   const count = await question("희망 매칭 인원 수(2~4): ");
-  const res = await client.post(
+  
+  // 1) 매칭 요청
+  await client.post(
     API.matching, 
-    { count : parseInt(count) },
+    { count: parseInt(count) },
     { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
   );
+  console.log(`🟡 매칭 요청 완료. 상태 확인 중...`);
 
-  const data = res.data;
-  if (data.status === 'matched') {
-      console.log(`✅ 매칭 완료! 채팅방 ID: ${data.roomId}`);
-  } else {
-      console.log(`⏳ 매칭 대기 중... 다른 사용자가 접속하면 자동으로 방이 만들어집니다.`);
+  // 2) 매칭 상태 확인 polling
+  let matched = false;
+  while (!matched) {
+    await new Promise(resolve => setTimeout(resolve, 3000)); // 3초 대기
+
+    try {
+      const res = await client.get("http://localhost:8080/api/matching/status", {
+        headers: { Authorization: `Bearer ${tokens.accessToken}` }
+      });
+
+      const data = res.data;
+      if (data.status === 'matched') {
+        console.log(`✅ 매칭 완료! 채팅방 ID: ${data.roomId}`);
+        await startChat(data.roomId, tokens.accessToken, rl);
+        matched = true;
+      } else {
+        console.log(`⏳ 매칭 대기 중...`);
+      }
+    } catch (err) {
+      console.error("❌ 상태 확인 중 오류:", err.message);
+      break;
+    }
   }
 }
-
 
 run();
 
