@@ -1,5 +1,10 @@
 package com.example.demo.dto;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import com.example.demo.constant.RequestStatus;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,6 +16,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class MatchResponseDto {
 
-    private String roomId;      // 매칭 완료 시 생성된 채팅방 UUID ID (없을 수도 있음)
-    private String status;    // "waiting", "matched", "error" 등 상태 정보
+    private Long matchId;
+    private RequestStatus status; // "waiting", "matched", "error" 등 상태 정보
+    private LocalDateTime createdAt;
 }
