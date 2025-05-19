@@ -1,16 +1,24 @@
 package com.example.demo.dto;
 
-import lombok.AllArgsConstructor;
+import com.example.demo.domain.User;
 import lombok.Builder;
 import lombok.Getter;
-//import lombok.Data;
 
 @Getter
 @Builder
-@AllArgsConstructor
 public class UserInfoResponseDto {
+
     private String username;
     private String name;
     private String phone;
     private String email;
+
+     public static UserInfoResponseDto from(User user) {
+        return UserInfoResponseDto.builder()
+            .username(user.getUsername())
+            .name(user.getName())
+            .phone(user.getPhone())
+            .email(user.getEmail())
+            .build();
+     }
 }
