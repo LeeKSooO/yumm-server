@@ -174,9 +174,11 @@ async function doLogin() {
       username, 
       password 
     });
-    tokens.accessToken  = res.data.accessToken;
-    tokens.refreshToken = res.data.refreshToken;
+
+    tokens.accessToken  = res.data.data.accessToken;
+    tokens.refreshToken = res.data.data.refreshToken;
     console.log('로그인 성공');
+
 }
 
 /**
@@ -216,7 +218,7 @@ async function doGetMyInfo() {
     const res = await client.get(API.getMyInfo, {
       headers: { Authorization: `Bearer ${tokens.accessToken}` }
     });
-    console.log('내 정보:', res.data);
+    console.log('내 정보:', res.data.data);
 }
 
 async function doUpdateMyInfo() {
@@ -229,7 +231,7 @@ async function doUpdateMyInfo() {
       { name, phone, email },
       { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
     );
-    console.log('수정된 정보:', res.data);
+    console.log('수정된 정보:', res.data.data);
 }
 
 async function doChangePW() {
@@ -253,7 +255,7 @@ async function doRefresh() {
       API.refresh, null,
       { headers: { Authorization: `Bearer ${tokens.refreshToken}` } }
     );
-    tokens.accessToken = res.data.accessToken;
+    tokens.accessToken = res.data.data.accessToken;
     console.log('⟳ 액세스 토큰 재발급 완료');
 }
 
@@ -278,7 +280,7 @@ async function doMatching() {
         headers: { Authorization: `Bearer ${tokens.accessToken}` }
       });
 
-      const data = res.data;
+      const data = res.data.data;
       if (data.status === 'matched') {
         console.log(`✅ 매칭 완료! 채팅방 ID: ${data.roomId}`);
         await startChat(data.roomId, tokens.accessToken, rl);
