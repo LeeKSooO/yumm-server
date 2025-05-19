@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// 인증 응답 데이터
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,4 +12,12 @@ import lombok.NoArgsConstructor;
 public class AuthResponseDto {
     private String accessToken;
     private String refreshToken;
+
+    public static AuthResponseDto of(String accessToken, String refreshToken) {
+        return AuthResponseDto.builder()
+            .accessToken(accessToken)
+            .refreshToken(refreshToken)
+            .build();
+    }
+
 }
