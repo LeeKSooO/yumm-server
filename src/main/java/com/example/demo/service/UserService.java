@@ -1,156 +1,34 @@
 package com.example.demo.service;
 
-import com.example.demo.domain.RefreshToken;
-import com.example.demo.domain.User;
-import com.example.demo.repository.RefreshTokenRepository;
-import com.example.demo.repository.UserRepository;
 import com.example.demo.dto.ChangePasswordRequestDto;
 import com.example.demo.dto.SignupRequestDto;
-import com.example.demo.dto.UserInfoResponseDto;
 import com.example.demo.dto.UpdateUserInfoDto;
-//import com.example.demo.dto.ChangePasswordRequestDto;
-import org.springframework.http.HttpStatus;
-import com.example.demo.util.JwtUtils;
+import com.example.demo.dto.UserInfoResponseDto;
 
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+/**
+ * 회원 정보 관련 인터페이스
+ * 
+ * 회원가입, 내 정보 조회, 내 정보 수정, 비밀번호 변경, 회원탈퇴 기능 정의
+ */
+public interface UserService {
 
-@Service // 비즈니스 로직을 처리하는 서비스 계층
-@Transactional
-@RequiredArgsConstructor // final로 선언된 필드를 자동으로 생성자 주입
-public class UserService {
-    private final UserRepository userRepository;
-    private final RefreshTokenRepository rfTokenRepo;
-    private final JwtUtils jwtUtil;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    /** 회원 가입 : 회원 정보 등록 */
+    void signup(SignupRequestDto signupRequestDto);
 
-    // signup
-    public User signup(SignupRequestDto signupRequestDto) {
-        if(userRepository.findByUsername(signupRequestDto.getUsername()).isPresent()) {
-            throw new RuntimeException("이미 존재하는 사용자입니다.");
-        }
 
-        String encodedPasswowrd = passwordEncoder.encode(signupRequestDto.getPassword());
+    /** 회원 정보 조회 */
+    UserInfoResponseDto getMyInfoByUsername(String username);
 
-        User newUser = User.builder()
-            .username(signupRequestDto.getUsername())
-            .password(encodedPasswowrd)
-            .name(signupRequestDto.getName())
-            .phone(signupRequestDto.getPhone())
-            .email(signupRequestDto.getEmail())
-            .role("ROLE_USER") // Default
-            .build();
 
-        return userRepository.save(newUser);
-    }
+    /** 회원 정보 수정 */
+    UserInfoResponseDto updateUserInfo(String username, UpdateUserInfoDto updateUserInfoDto);
 
-    // getMyInfo
-    public UserInfoResponseDto getMyInfoByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                    .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        return UserInfoResponseDto.builder()
-            .username(user.getUsername())
-            .name(user.getName())
-            .phone(user.getPhone())
-            .email(user.getEmail())
-            .build();
-    }
-    
-    // updateMyInfo
-    public UserInfoResponseDto updateUserInfo(String username, UpdateUserInfoDto updateUserInfoDto) {
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
-            user.setName(updateUserInfoDto.getName());
-            user.setPhone(updateUserInfoDto.getPhone());
-            user.setEmail(updateUserInfoDto.getEmail());
+     /** 회원 비밀번호 변경 */
+    void changePassword(String username, ChangePasswordRequestDto changePasswordRequestDto);
 
-            User saved = userRepository.save(user);
 
-            return UserInfoResponseDto.builder()
-                .username(saved.getUsername())
-                .name(saved.getName())
-                .phone(saved.getPhone())
-                .email(saved.getEmail())
-                .build();
-    }
+    /** 회원 탈퇴 */
+    void withdraw(String username);
 
-    // changePassword
-    public void changePassword(String username, ChangePasswordRequestDto changePasswordRequestDto) {
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-        
-        // 현재 비밀번호 검증
-        if(!passwordEncoder.matches(changePasswordRequestDto.getOldPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"현재 비밀번호가 일치하지 않습니다.");
-        }
-
-        // 새 비밀번호 암호화 후 저장
-        String encodedNew = passwordEncoder.encode(changePasswordRequestDto.getNewPassword());
-        user.setPassword(encodedNew);
-        userRepository.save(user);
-    }
-
-    /**
-     * 회원 탈퇴: 
-     * 1) 해당 사용자의 모든 리프레시 토큰을 삭제하고,
-     * 2) 사용자 엔티티를 삭제합니다.
-     *
-     * username 탈퇴할 사용자의 아이디
-     */
-    public void withdraw(String username) {
-        // 1) 해당 사용자의 리프레시 토큰 전부 삭제
-        rfTokenRepo.deleteAllByUsername(username);
-
-        // 2) 사용자 엔티티 삭제
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
-        userRepository.delete(user);
-    }
 }
-
-    // login
-    // rawPassword(평문)와 BCrpytPasswordEncoder를 사용하여 암호화한 비밀번호를 비교하는 방식
-    /*
-    public String login(String username, String rawPassword) {
-        User user = userRepository.findByUsername(username)
-            .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
-
-        if(!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
-        }
-
-        return jwtUtil.generateAccessToken(username);
-    }
-    */
-
-    // logout
-    // 로그아웃 처리 : 전잘된 JWT 토큰을 블랙리스트에 등록하고 남은 만료 기간 동안 재사용을 막는다.
-    /*
-    public void logout(String token) {
-        // 토큰이 유효한지 파싱해보고 남은 TTL을 계산
-        long expiresAt = jwtUtil.getExpiration(token);
-        long now  = System.currentTimeMillis();
-        long ttlMillis = Math.max(0, expiresAt - now);
-
-        // Redis나 DB에 (token, 블랙리스트 표시) 형태로 저장
-        blacklistRepo.add(token, ttlMillis);
-    }
-
-    public void deleteRefreshToken(String deleteRefreshToken) {
-        refreshTokenRepo.deleteById(refreshToken);
-    }
-    */
-
-
-    // 내 정보 조회(admin전용 userId 기준으로 search)
-    /*
-    public User getMyInfo(Long userId) {
-        return userRepository.findById(userId)
-            .orElseThrow(()-> new RuntimeException("사용자를 찾을 수 없습니다."));
-    }
-    */
