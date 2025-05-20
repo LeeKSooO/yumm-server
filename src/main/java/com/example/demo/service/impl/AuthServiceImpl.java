@@ -3,6 +3,7 @@ import com.example.demo.service.AuthService;
 
 import com.example.demo.domain.RefreshToken;
 import com.example.demo.domain.User;
+import com.example.demo.dto.AccessTokenResponseDto;
 import com.example.demo.dto.AuthRequestDto;
 import com.example.demo.dto.AuthResponseDto;
 import com.example.demo.exception.CustomException;
@@ -55,20 +56,22 @@ public class AuthServiceImpl implements AuthService {
             .build();
             refreshTokenRepository.save(rt);
 
-        return AuthResponseDto.builder()
-            .accessToken(accessToken)
-            .refreshToken(refreshToken)
-            .build();
+        // 응답 DTO 반환
+        return AuthResponseDto.of(accessToken, refreshToken);
     }
 
     /**
      * 사용자 로그아웃 처리
      * 
-     * 전달받은 리프레시 토큰이 DB에 존재하면 삭제
+     * 전달받은 리프레시 토큰이 유효하고 DB에 존재하면 삭제
      */
     @Override
-    public void logout(String refreshToken) {
+    public void logout(String token) {
 
+        // 원문 token 문자열 파싱(bearer token 값만 받음)
+        String refreshToken = JwtUtils.extractTokenFrom(token); 
+
+        // 토큰 존재하면 삭제
         refreshTokenRepository.findByToken(refreshToken).ifPresent(refreshTokenRepository::delete);
     }
 
@@ -79,7 +82,7 @@ public class AuthServiceImpl implements AuthService {
      * 유효성을 검사한 후 새 액세스 토큰을 발급
      */
     @Override
-    public String refreshAccessToken(String authorizationHeader, String refreshTokenCookie) {
+    public AccessTokenResponseDto refreshAccessToken(String authorizationHeader, String refreshTokenCookie) {
 
         // JwtUtils를 통해 validation 검사 및 토큰 추출
         String refreshToken = JwtUtils.extractTokenFromHeaderOrCookie(authorizationHeader, refreshTokenCookie);
@@ -91,7 +94,9 @@ public class AuthServiceImpl implements AuthService {
         // 만료된 Refresh Token이면 DB에서 삭제, 재로그인 필요
         validateTokenExpiry(rt);
 
-        return jwtUtils.generateAccessToken(rt.getUsername());
+        // 응답 DTO 반환
+        String newAccessToken = jwtUtils.generateAccessToken(rt.getUsername());
+        return AccessTokenResponseDto.of(newAccessToken);
     }
 
 

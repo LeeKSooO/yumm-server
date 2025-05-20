@@ -1,56 +1,88 @@
 package com.example.demo.controller;
 
-import com.example.demo.domain.User;
 import com.example.demo.service.UserService;
-import com.example.demo.dto.UserInfoResponseDto;
 import com.example.demo.security.CustomUserDetails;
-import com.example.demo.dto.SignupRequestDto;
-import com.example.demo.dto.UpdateUserInfoDto;
-import com.example.demo.dto.ChangePasswordRequestDto;
-import lombok.RequiredArgsConstructor;
+import com.example.demo.common.ApiResponse;
+import com.example.demo.dto.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
+import lombok.RequiredArgsConstructor;
 
 
-@RestController // 이 클래스가 REST API를 처리하는 컨트롤러임을 명시
+@RestController
 @RequestMapping("/api/user") 
-@RequiredArgsConstructor // final field 자동 주입
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
-
-    // 회원가입
+    
+    /**
+     * 유저 회원가입
+     */
     @PostMapping("/signup")
-    public User signup(@RequestBody SignupRequestDto signupRequest) {
-        return userService.signup(signupRequest);
+    @Operation(summary = "사용자 회원가입", description = "회원가입 요청 정보를 받아 새 사용자를 등록합니다.")
+    public ResponseEntity<ApiResponse<Void>> signup(@RequestBody SignupRequestDto signupRequest) {
+
+        userService.signup(signupRequest);
+
+        return ApiResponse.created("회원가입이 성공적으로 완료되었습니다.");
     }
     
-    // 내 정보 조회
+
+    /**
+     * 내 정보 조회
+     */
     @GetMapping("/me")
-    public UserInfoResponseDto getMyInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        return userService.getMyInfoByUsername(userDetails.getUsername());
+    @Operation(summary = "사용자 정보 조회", description = "현재 로그인한 사용자의 상세 정보를 반환합니다.")
+    public ResponseEntity<ApiResponse<UserInfoResponseDto>> getMyInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        UserInfoResponseDto userInfoResponseDtp = userService.getMyInfoByUsername(userDetails.getUsername());
+
+        return ApiResponse.ok("내 정보 조회 성공", userInfoResponseDtp);
     }
 
-    // 내 정보 수정
+    
+
+    /**
+     * 내 정보 수정
+     */
     @PutMapping("/me")
-    public UserInfoResponseDto updateMyInfo(@AuthenticationPrincipal CustomUserDetails userDetails,
-                                            @RequestBody UpdateUserInfoDto updateUserInfoDto) {
-        return userService.updateUserInfo(userDetails.getUsername(), updateUserInfoDto);
+    @Operation(summary = "사용자 정보 수정", description = "로그인한 사용자의 프로필 정보를 수정합니다.")
+    public ResponseEntity<ApiResponse<UserInfoResponseDto>> updateMyInfo(@AuthenticationPrincipal CustomUserDetails userDetails,
+                                                                         @RequestBody UpdateUserInfoDto updateUserInfoDto) {
+
+        UserInfoResponseDto userInfoResponseDto = userService.updateUserInfo(userDetails.getUsername(), updateUserInfoDto);
+
+        return ApiResponse.ok("내 정보 수정 완료", userInfoResponseDto);
     }
 
-    // 비밀번호 변경
+
+    /**
+     * 비밀번호 변경
+     */
     @PutMapping("/password")
-    public ResponseEntity<String> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails, 
-                                                 @RequestBody ChangePasswordRequestDto changePasswordRequestDto) {
+    @Operation(summary = "사용자 비밀번호 변경", description = "현재 비밀번호와 새로운 비밀번호를 입력받아 비밀번호를 변경합니다.")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails, 
+                                                            @RequestBody ChangePasswordRequestDto changePasswordRequestDto) {
+
         userService.changePassword(userDetails.getUsername(), changePasswordRequestDto);
-        return ResponseEntity.ok("Password changed successfully");
+
+        return ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.");                           
     }
 
-    // 회원탈퇴
+
+    /**
+     * 회원탈퇴
+     */
     @DeleteMapping("/withdraw")
-    public ResponseEntity<Void> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    @Operation(summary = "사용자 회원탈퇴", description = "로그인한 사용자의 계정을 삭제합니다. 이 작업은 되돌릴 수 없습니다.")
+    public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
+
         userService.withdraw(userDetails.getUsername());
-        return ResponseEntity.noContent().build();
+
+        return ApiResponse.ok("회원 탈퇴가 완료되었습니다");                      
     }
+
 }
