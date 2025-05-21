@@ -29,6 +29,7 @@ public class JwtUtils {
             .compact();
     }
 
+
     // Refresh Token 생성
     public String generateRefreshToken(String username) {
         Date now = new Date();
@@ -40,48 +41,67 @@ public class JwtUtils {
             .compact();
     }
 
-    // 토큰에서 usename(사용자 이름) 추출
-    public String getUsernameFromToken(String token) {
-        return Jwts.parserBuilder()
-            .setSigningKey(key)
-            .build()
-            .parseClaimsJws(token)
-            .getBody()
-            .getSubject();
-    }
-
-    // Token Validation Check
-    public boolean validation(String token) {
-        try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
 
     // 리프레시 토큰 유효기간 반환
     public long getRefreshTokenMillis() {
         return refreshTokenMillis;
     }
 
+
     // 액세스 토큰 유효기간 반환
     public long getAccessTokenMillis() {
         return accessTokenMillis;
     }
 
+
+    /**
+     * 토큰에서 usename(사용자 이름) 추출
+     */ 
+    public String getUsernameFromToken(String token) {
+        
+        return Jwts.parserBuilder()     // JWT 파서를 생성
+            .setSigningKey(key)         // 서명을 검증할 키 설정
+            .build()                    //
+            .parseClaimsJws(token)      // 토큰 파싱 (서명 검증 포함)
+            .getBody()                  // payload (Claims) 가져옴
+            .getSubject();              // sub 필드가 username에 해당
+    }
+
+
+    /**
+     * 토큰 유효성 검증 로직
+     * 
+     * parseClaimsJws(token) 호출 시, 내부적으로 다음 항목 점검
+     *  1. 서명 검증 : 토큰이 signWith(..)로 서명된 비밀 키와 일치하는지 확인(위조 토큰 차단)
+     *  2. 만료 시각 : 현재 시간보다 exp 값이 지났다면 expiredJwtException 발생
+     *  3. 잘못된 형식/무결성 : 토큰의 구조적 손상이나 잘못된 포맷일 경우 IllegalArgumentException 발생
+     * 
+     * @param token : 접두어("bearer") 제거한 실제 토큰 문자열
+     * @throws JwtException : 유효하지 않은 토큰일 경우 예외 발생
+     */
+    public void validation(String token) throws JwtException {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw new JwtException("토큰이 유효하지 않습니다.",ex);
+        }
+    }
+
+
     /**
      * Authorization 헤더에서 'Bearer ' 접두어를 제거하고 토큰 본문만 반환합니다.
+     * 
      * @param bearerHeader 전체 Authorization 헤더 값 
      * @return 실제 토큰 문자열
      * @throws IllegalArgumentException 접두어가 없으면 예외 발생
      */
     public static String extractTokenFrom(String bearerHeader) {
         if (bearerHeader == null || !bearerHeader.startsWith(BEARER_PREFIX)) {
-            throw new IllegalArgumentException("Invalid Authorization header");
+            throw new JwtException("Authorization 헤더 형식이 잘못되었습니다. 'Bearer {token}' 형식이어야 합니다.");
         }
         return bearerHeader.substring(BEARER_PREFIX.length());
     }    
+
 
     /**
      * Authorization 헤더 또는 Cookie에서 토큰을 추출합니다.
