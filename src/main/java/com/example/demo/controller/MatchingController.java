@@ -1,13 +1,12 @@
 package com.example.demo.controller;
 
-import com.example.demo.constant.Food;
-import com.example.demo.constant.Region;
-import com.example.demo.constant.RequestStatus;
-import com.example.demo.domain.Matching;
+import com.example.demo.common.ApiResponse;
 import com.example.demo.dto.MatchRequestDto;
 import com.example.demo.dto.MatchResponseDto;
 import com.example.demo.security.CustomUserDetails;
 import com.example.demo.service.MatchingService;
+
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,19 +21,22 @@ public class MatchingController {
 
         /* 1) 매칭 요청 생성 */
         @PostMapping("/wait")
-        public MatchResponseDto requestMatching(
+        @Operation(summary = "매칭 요청 생성", description = "매칭 요청을 생성합니다.")
+        public ResponseEntity<ApiResponse<MatchResponseDto>> requestMatching(
                         @AuthenticationPrincipal CustomUserDetails userDetails,
                         @RequestBody MatchRequestDto matchRequestDto) {
-                return matchingService.createRequest(userDetails.getId(), matchRequestDto);
+                MatchResponseDto matchResponseDto = matchingService.createRequest(userDetails.getId(), matchRequestDto);
+                return ApiResponse.ok("매칭이 요청되었습니다.", matchResponseDto);
         }
 
         /* 2) 매칭 요청 취소 */
         @DeleteMapping("/{id}")
-        public ResponseEntity<Void> cancelMatching(
+        @Operation(summary = "매칭 요청 취소", description = "매칭 요청 중 취소를 합니다.")
+        public ResponseEntity<ApiResponse<Void>> cancelMatching(
                         @AuthenticationPrincipal CustomUserDetails userDetails,
                         @PathVariable Long id) {
                 matchingService.cancelRequest(userDetails.getId(), id);
-                return ResponseEntity.noContent().build();
+                return ApiResponse.ok("매칭 요청이 취소되었습니다");
         }
 
 }

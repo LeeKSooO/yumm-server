@@ -57,6 +57,9 @@ public class Matching {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "group_id", updatable = false, unique = true)
+    private Long groupId;
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "condition_id")
     private MatchingCondition condition;

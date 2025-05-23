@@ -1,4 +1,5 @@
 package com.example.demo.service;
+
 import org.springframework.stereotype.Service;
 
 import com.example.demo.domain.ChatRoom;
@@ -16,7 +17,7 @@ public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
 
-    public String createRoom(Long matchingId, List<User> matchedUsers) {
+    public String createRoom(Long groupId, List<User> matchedUsers) {
 
         ChatRoom room = new ChatRoom();
 
@@ -24,7 +25,7 @@ public class ChatRoomService {
         room.setParticipants(matchedUsers);
         room.setMaxUserCount(matchedUsers.size());
 
-        System.out.println("[DEBUG] ChatRoom 생성됨 - matchingId=" + matchingId);
+        System.out.println("[DEBUG] ChatRoom 생성됨 - matchingId=" + groupId);
         System.out.println("Participants:");
         for (User u : matchedUsers) {
             System.out.println(" - userId=" + u.getId());

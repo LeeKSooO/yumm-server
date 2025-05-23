@@ -23,7 +23,7 @@ public interface MatchingRepository extends JpaRepository<Matching, Long> {
         SELECT m
           FROM Matching m
          WHERE m.status = :status
-           AND m.count  = :size
+           AND m.groupSize  = :size
            AND m.region = :region
            AND m.food   = :food
       """)
@@ -42,7 +42,7 @@ public interface MatchingRepository extends JpaRepository<Matching, Long> {
         SELECT m
           FROM Matching m
          WHERE m.status = :status
-           AND m.count  = :size
+           AND m.groupSize  = :size
            AND m.region = :region
       """)
   List<Matching> findPendingMatchExceptFood(
