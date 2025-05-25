@@ -1,28 +1,42 @@
 package com.example.demo.util;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
 
 @Component
 public class JwtUtils {
-                                              // 256 byte 이상
-    private static final String SECRET_KEY = "mysecretkeymysecretkeymysecretkeymysecretkey";
+                                                    // 256 byte 이상
+    private static final String SECRET_KEY_BASE64 = "mysecretkeymysecretkeymysecretkeymysecretkeymysecretkeymysecretkeymysecretkeymysecretkey";
     private static final String BEARER_PREFIX = "Bearer ";
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    private final Key key = Keys.hmacShaKeyFor(java.util.Base64.getDecoder().decode(SECRET_KEY_BASE64)); // Base64 디코딩
     private final long accessTokenMillis = 1000 * 60 * 30;              // 30 minutes
     private final long refreshTokenMillis = 1000 * 60 * 60 * 24 * 7;   //  7 days
 
 
-    // Access Token 생성
-    public String generateAccessToken(String username) {
+    /**
+     * AccessToken 생성
+     * 사용자 ID(email)와 권한 정보를 JWT Claim에 포함
+     * 
+     * @param userId 사용자 고유 ID(DB PK)
+     * @param email 사용자 로그인 ID
+     * @param roles 사용자 권한 목록 (ROLE_USER, ROLE_ADMIN)
+     * @return AccessToken 문자열
+     */
+    public String generateAccessToken(Long userId, String email, List<String> roles) {
         Date now = new Date();
         return Jwts.builder()
-            .setSubject(username)
+            .setSubject(userId.toString())
+            .claim("email", email)
+            .claim("roles", roles)
             .setIssuedAt(now)
             .setExpiration(new Date(now.getTime() + accessTokenMillis))
             .signWith(key, SignatureAlgorithm.HS256)
@@ -30,11 +44,21 @@ public class JwtUtils {
     }
 
 
-    // Refresh Token 생성
-    public String generateRefreshToken(String username) {
+    /**
+     * RefreshToken 생성
+     * 사용자 ID(email)와 권한 정보를 JWT Claim에 포함
+     * 
+     * @param userId 사용자 고유 ID(DB PK)
+     * @param email 사용자 로그인 ID
+     * @param roles 사용자 권한 목록 (ROLE_USER, ROLE_ADMIN)
+     * @return AccessToken 문자열
+     */
+    public String generateRefreshToken(Long userId, String email, List<String> roles) {
         Date now = new Date();
         return Jwts.builder()
-            .setSubject(username)
+            .setSubject(userId.toString())
+            .claim("email",email)
+            .claim("roles",roles)
             .setIssuedAt(now)
             .setExpiration(new Date(now.getTime() + refreshTokenMillis))
             .signWith(key, SignatureAlgorithm.HS256)
@@ -55,26 +79,58 @@ public class JwtUtils {
 
 
     /**
-     * 토큰에서 usename(사용자 이름) 추출
-     */ 
-    public String getUsernameFromToken(String token) {
-        
-        return Jwts.parserBuilder()     // JWT 파서를 생성
-            .setSigningKey(key)         // 서명을 검증할 키 설정
-            .build()                    //
-            .parseClaimsJws(token)      // 토큰 파싱 (서명 검증 포함)
-            .getBody()                  // payload (Claims) 가져옴
-            .getSubject();              // sub 필드가 username에 해당
+     * Access Token 또는 Refresh Token에서 userId 추출
+     *
+     * @param token JWT 문자열
+     * @return 추출된 userId (Long)
+     */
+    public Long getUserIdFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return Long.valueOf(claims.getSubject()); // sub 클레임에서 userId 추출
     }
 
+    /**
+     * Access Token 또는 Refresh Token에서 email 추출
+     *
+     * @param token JWT 문자열
+     * @return 추출된 email (String)
+     */
+    public String getEmailFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.get("email", String.class);
+    }
+
+    /**
+     * Access Token 또는 Refresh Token에서 roles 추출
+     *
+     * @param token JWT 문자열
+     * @return 추출된 roles (List<String>)
+     */
+    public List<String> getRolesFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();              
+        return (List<String>) claims.get("roles");
+    }
 
     /**
      * 토큰 유효성 검증 로직
      * 
      * parseClaimsJws(token) 호출 시, 내부적으로 다음 항목 점검
-     *  1. 서명 검증 : 토큰이 signWith(..)로 서명된 비밀 키와 일치하는지 확인(위조 토큰 차단)
-     *  2. 만료 시각 : 현재 시간보다 exp 값이 지났다면 expiredJwtException 발생
-     *  3. 잘못된 형식/무결성 : 토큰의 구조적 손상이나 잘못된 포맷일 경우 IllegalArgumentException 발생
+     * 
+     * 서명 검증 : 토큰이 signWith(..)로 서명된 비밀 키와 일치하는지 확인(위조 토큰 차단)
+     * 만료 시각 : 현재 시간보다 exp 값이 지났다면 expiredJwtException 발생
+     * 잘못된 형식/무결성 : 토큰의 구조적 손상이나 잘못된 포맷일 경우 IllegalArgumentException 발생
      * 
      * @param token : 접두어("bearer") 제거한 실제 토큰 문자열
      * @throws JwtException : 유효하지 않은 토큰일 경우 예외 발생
@@ -115,7 +171,7 @@ public class JwtUtils {
     public static String extractTokenFromHeaderOrCookie(String authorizationHeader, String refreshTokenCookie) {
         try {
             return extractTokenFrom(authorizationHeader);
-        } catch (IllegalArgumentException e) {
+        } catch (JwtException e) {
             if (refreshTokenCookie != null) {
                 return refreshTokenCookie;
             }
