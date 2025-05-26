@@ -2,9 +2,7 @@ package com.example.demo.domain;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
 import com.example.demo.constant.*;
-import com.example.demo.domain.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

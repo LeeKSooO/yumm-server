@@ -1,8 +1,10 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.ApiResponse;
+import com.example.demo.constant.RequestStatus;
 import com.example.demo.dto.MatchRequestDto;
 import com.example.demo.dto.MatchResponseDto;
+import com.example.demo.dto.MatchStatusDto;
 import com.example.demo.security.CustomUserDetails;
 import com.example.demo.service.MatchingService;
 
@@ -29,7 +31,16 @@ public class MatchingController {
                 return ApiResponse.ok("매칭이 요청되었습니다.", matchResponseDto);
         }
 
-        /* 2) 매칭 요청 취소 */
+        /* 2) 매칭 상태 조회 */
+        @GetMapping("/status")
+        @Operation(summary = "내 매칭 상태 조회", description = "현재 내 매칭 요청 상태(대기·매칭완료·취소)를 조회합니다.")
+        public ResponseEntity<ApiResponse<MatchStatusDto>> getMyMatchingStatus(
+                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+                MatchStatusDto statusDto = matchingService.getRequestStatus(userDetails.getId());
+                return ApiResponse.ok("현재 매칭 상태입니다.", statusDto);
+        }
+
+        /* 3) 매칭 요청 취소 */
         @DeleteMapping("/{id}")
         @Operation(summary = "매칭 요청 취소", description = "매칭 요청 중 취소를 합니다.")
         public ResponseEntity<ApiResponse<Void>> cancelMatching(

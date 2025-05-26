@@ -4,6 +4,7 @@ import com.example.demo.domain.User;
 import org.springframework.stereotype.Service;
 import com.example.demo.dto.MatchRequestDto;
 import com.example.demo.dto.MatchResponseDto;
+import com.example.demo.dto.MatchStatusDto;
 import com.example.demo.exception.CustomException;
 import com.example.demo.exception.ErrorCode;
 import com.example.demo.service.ChatRoomService;
@@ -77,16 +78,16 @@ public class MatchingServiceImpl implements MatchingService {
                     List<User> matchingUsers = match.stream()
                             .map(m -> m.getUser())
                             .toList();
+                    Long groupId = match.get(0).getId();
                     match.forEach(m -> {
                         // 상태 변경
                         m.setStatus(RequestStatus.MATCHED);
                         // 매칭 인원리스트에 유저 추가
-                        m.setGroupId(matchingUsers.get(0).getId());
+                        m.setGroupId(groupId);
                         // 매칭 인원중 대표 인원 id 값을 groupId으로 지정
                         m.setMatchedUsers(matchingUsers);
                     });
                     matchingRepo.saveAll(match);
-                    chatRoomService.createRoom(match.get(0).getGroupId(), matchingUsers);
 
                 }
             }
@@ -121,19 +122,18 @@ public class MatchingServiceImpl implements MatchingService {
                 List<User> matchingUsers = match.stream()
                         .map(m -> m.getUser())
                         .toList();
-
+                Long groupId = match.get(0).getId();
                 match.forEach(m -> {
                     // 상태 변경
                     m.setStatus(RequestStatus.MATCHED);
                     // 매칭 인원리스트에 유저 추가
                     m.setMatchedUsers(matchingUsers);
                     // 매칭 인원중 대표 인원 id 값을 groupId으로 지정
-                    m.setGroupId(matchingUsers.get(0).getId());
+                    m.setGroupId(groupId);
                 });
                 // matchingRepository에 저장
                 matchingRepo.saveAll(match);
-                // ChatroomService에서 createRoom 메소드에 GroupId와 매칭 인원리스트를 매개변수값으로 지정
-                chatRoomService.createRoom(match.get(0).getGroupId(), matchingUsers);
+
             }
         }
     }
@@ -171,4 +171,26 @@ public class MatchingServiceImpl implements MatchingService {
         m.setStatus(RequestStatus.CANCELED);
         matchingRepo.save(m);
     }
+
+    /* 본인의 현재 매칭 상태 확인 */
+    @Override
+    public MatchStatusDto getRequestStatus(Long userId) {
+        // 1) 가장 최근 요청 가져오기
+        Matching matching = matchingRepo
+                .findTopByUser_IdOrderByCreatedAtDesc(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MATCHING_NOT_FOUND));
+
+        // 2) 매칭 상태와 생성 시각은 공통
+        Long id = matching.getId();
+        RequestStatus status = matching.getStatus();
+        LocalDateTime createdAt = matching.getCreatedAt();
+        Long groupId = null;
+        // 3) MATCHED 상태일 때만 matchedUserIds 채우기
+        if (status == RequestStatus.MATCHED) {
+            groupId = matching.getGroupId();
+
+        }
+
+        return new MatchStatusDto(id, status, createdAt, groupId);
+    };
 }

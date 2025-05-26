@@ -2,6 +2,7 @@ package com.example.demo.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -64,10 +65,8 @@ public interface MatchingRepository extends JpaRepository<Matching, Long> {
       @Param("status") RequestStatus status,
       @Param("cutoff") LocalDateTime cutoff);
 
-  @Query("""
-      SELECT m
-        FROM Matching m
-       WHERE m.status = :status
-      """)
-  List<Matching> findBystatus(@Param("status") RequestStatus status);
+  /**
+   * 5) 내 매칭 요청 중 가장 최근 것 한 건
+   */
+  Optional<Matching> findTopByUser_IdOrderByCreatedAtDesc(Long userId);
 }
