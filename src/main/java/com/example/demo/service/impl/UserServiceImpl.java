@@ -178,16 +178,19 @@ public class UserServiceImpl implements UserService {
     /** 회원 탈퇴 */
     @Override
     public void withdraw(Long userId) {
-
         // 해당 사용자의 모든 토큰 삭제 (Redis에서 Refresh Token 삭제 및 Access Token 블랙리스트 추가)
         jwtRedisService.invalidateAllUserTokens(userId, null);
 
         // 사용자 조회(존재하지 않으면 예외처리)
         User user = findUserByIdOrThrow(userId);
 
+        // 회원 탈퇴 시, 유저와 관련된 Redis에 캐싱된 정보 다 날리는 로직 필요
+        jwtRedisService.deleteAllUserCache(userId);
+
         // 사용자 엔티티 DB에서 삭제
         userRepository.delete(user);
     }
+
 
     /** 사용자 상세 정보 조회(개발/유지보수용) */
     @Override
