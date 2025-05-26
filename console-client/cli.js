@@ -3,297 +3,361 @@
 const axios = require('axios');
 const readline = require('readline');
 const { STATES, EVENTS, TRANSITIONS } = require('./stateMachine');
+const fs = require('fs');
 
-// 401 인터셉터를 위한 인스턴스 생성
-const client = axios.create();
+const TOKEN_FILE = './tokens.json';
 
-// 401 인터셉터 등록 : 401 응답 시 doRefresh() 호출 후 재시도
+// 401 인터셉터를 위한 axios 인스턴스 생성
+const client = axios.create(); // client 인스턴스는 이제 기본 Authorization 헤더를 가질 것입니다.
+
+let tokens = { accessToken: null, refreshToken: null };
+
+function loadTokens() {
+    try {
+        if (fs.existsSync(TOKEN_FILE)) {
+            const data = fs.readFileSync(TOKEN_FILE, 'utf8');
+            tokens = JSON.parse(data);
+            console.log('✅ 토큰 로드 완료.');
+        }
+    } catch (err) {
+        console.error('❌ 토큰 로드 중 오류:', err.message);
+    }
+}
+
+function saveTokens() {
+    try {
+        fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2), 'utf8');
+        console.log('✅ 토큰 저장 완료.');
+    } catch (err) {
+        console.error('❌ 토큰 저장 중 오류:', err.message);
+    }
+}
+
+function clearTokens() {
+    tokens = { accessToken: null, refreshToken: null };
+    if (fs.existsSync(TOKEN_FILE)) {
+        fs.unlinkSync(TOKEN_FILE);
+        console.log('🗑️ 토큰 파일 삭제 완료.');
+    }
+    // 🟢 중요: 토큰 삭제 시 client 인스턴스의 기본 Authorization 헤더도 제거
+    delete client.defaults.headers.common['Authorization'];
+}
+
+// 401 응답 인터셉터 설정: Access Token 만료 시 Refresh Token으로 재발급 시도
 client.interceptors.response.use(
     response => {
-        console.log(`✅ [RESPONSE] ${response.status} ${response.config.url}`); // 정상 응답도 찍기
+        console.log(`✅ [RESPONSE] ${response.status} ${response.config.url}`);
         return response;
     },
     async error => {
-      const { config, response } = error;
-      console.log(`❌ [RESPONSE] ${response?.status} ${config.url}`);      // 에러 응답 찍기
-      if (response?.status === 401 && !config._retry) {
-        config._retry = true;
-        await doRefresh();
+        const { config, response } = error;
+        console.log(`❌ [RESPONSE] ${response?.status} ${config.url}`);
 
-        // 새로 발급받은 accessToken 헤더에 설정
-        config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
-        return client(config);
-      }
-      return Promise.reject(error);
+        const isRefreshAttempt = config.url && config.url.includes(API.refresh);
+        if (response?.status === 401 && !config._retry && !isRefreshAttempt) {
+            config._retry = true;
+            console.log('액세스 토큰 만료 또는 유효하지 않음. 재발급 시도...');
+            try {
+                await doRefresh(); // 액세스 토큰 재발급 함수 호출
+                // 새로 발급받은 Access Token은 client.defaults.headers.common['Authorization']에 이미 설정됨.
+                // 따라서 원본 config의 Authorization 헤더는 직접 수정할 필요 없음.
+                // axios는 retry 시 client.defaults.headers.common를 자동으로 사용합니다.
+                return client(config); // 원본 요청 재시도
+            } catch (refreshError) {
+                console.error('❌ 액세스 토큰 재발급 실패. 다시 로그인하세요.');
+                state = STATES.UNAUTHENTICATED;
+                clearTokens();
+                return Promise.reject(refreshError);
+            }
+        }
+        return Promise.reject(error);
     }
-  );
+);
 
 const API = {
-  signup:       'http://localhost:8080/api/user/signup',
-  login:        'http://localhost:8080/api/auth/login',
-  getMyInfo:    'http://localhost:8080/api/user/me',
-  updateMyInfo: 'http://localhost:8080/api/user/me',
-  changePW:     'http://localhost:8080/api/user/password',
-  logout:       'http://localhost:8080/api/auth/logout',
-  withdraw:     'http://localhost:8080/api/user/withdraw',
-  refresh:      'http://localhost:8080/api/auth/refresh',
-  matching:     'http://localhost:8080/api/matching/wait'
+    signup: 'http://localhost:8080/api/user/signup',
+    login: 'http://localhost:8080/api/auth/login',
+    getProfile: 'http://localhost:8080/api/user/profile',
+    updateProfile: 'http://localhost:8080/api/user/profile',
+    updateEmail: 'http://localhost:8080/api/user/email',
+    updatePhoneNumber: 'http://localhost:8080/api/user/phone-number',
+    getUserDetails: 'http://localhost:8080/api/user/me/details',
+    changePW: 'http://localhost:8080/api/user/password',
+    logout: 'http://localhost:8080/api/auth/logout',
+    withdraw: 'http://localhost:8080/api/user/withdraw',
+    refresh: 'http://localhost:8080/api/auth/refresh',
 };
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const question = q => new Promise(res => rl.question(q, res));
-const { startChat } = require('./chatClient');
 
-let state, actor, tokens;
+let state;
 
 async function run() {
-  console.log('=== 콘솔 클라이언트 시작 ===');
+    console.log('=== 콘솔 클라이언트 시작 ===');
+    loadTokens();
 
-  // 외부 루프: 세션이 끝나면 actor 선택 단계로 돌아감
-  while (true) {
-    // 초기화
-    state = STATES.DEFAULT;
-    actor = null;
-    tokens = { accessToken: null, refreshToken: null };
+    while (true) {
+        if (tokens.accessToken && tokens.refreshToken) {
+            console.log('\n🔍 기존 토큰 유효성 확인 중...');
+            try {
+                // 기존 토큰 유효성 검증: client.defaults.headers.common 사용
+                client.defaults.headers.common['Authorization'] = `Bearer ${tokens.accessToken}`; // 초기 Access Token 설정
+                await client.get(API.getProfile); // headers 옵션 제거
+                state = STATES.AUTHENTICATED;
+                console.log(`✅ 기존 세션 유지됨 → 상태: ${state}`);
+            } catch (err) {
+                console.log('⚠️ 기존 토큰 만료 또는 유효하지 않음. 다시 로그인하세요.');
+                state = STATES.UNAUTHENTICATED;
+                clearTokens(); // 유효하지 않은 토큰 삭제 (내부에서 기본 헤더도 제거)
+            }
+        } else {
+            state = STATES.UNAUTHENTICATED;
+            console.log('✨ 새 세션 시작 → 상태: UNAUTHENTICATED');
+        }
 
-    // 1) actor 선택
-    while (state === STATES.DEFAULT) {
-      console.log('\n== 역할 선택 ==');
-      console.log('1) user');
-      console.log('2) admin');
-      const choice = (await question('> ')).trim();
-      let ev = null;
-      if (choice === '1') ev = EVENTS.SELECT_USER;
-      if (choice === '2') ev = EVENTS.SELECT_ADMIN;
-      if (ev && TRANSITIONS[state][ev]) {
-        actor = ev === EVENTS.SELECT_USER ? 'user' : 'admin';
-        state = TRANSITIONS[state][ev];
-        console.log(`선택: ${actor} → 상태: ${state}`);
-      } else {
-        console.log('1 또는 2 중에서 선택하세요.');
-      }
+        let endSession = false;
+        while (!endSession) {
+            console.log(`\n[${state.toUpperCase()}] 가능한 액션:`);
+            let menu = [];
+
+            if (state === STATES.UNAUTHENTICATED) {
+                menu = [
+                    { num: '1', label: '회원가입', event: EVENTS.SIGNUP },
+                    { num: '2', label: '로그인', event: EVENTS.LOGIN }
+                ];
+            } else if (state === STATES.AUTHENTICATED) {
+                menu = [
+                    { num: '1', label: '프로필 조회 (닉네임/URL)', event: EVENTS.GET_PROFILE },
+                    { num: '2', label: '프로필 수정 (닉네임/URL)', event: EVENTS.UPDATE_PROFILE },
+                    { num: '3', label: '이메일 변경', event: EVENTS.UPDATE_EMAIL },
+                    { num: '4', label: '전화번호 변경', event: EVENTS.UPDATE_PHONE_NUMBER },
+                    { num: '5', label: '상세 정보 조회 (이메일/전화번호 포함)', event: EVENTS.GET_USER_DETAILS },
+                    { num: '6', label: '비밀번호 변경', event: EVENTS.CHANGE_PW },
+                    { num: '7', label: '로그아웃', event: EVENTS.LOGOUT },
+                    { num: '8', label: '회원탈퇴', event: EVENTS.WITHDRAW }
+                ];
+            }
+            
+            console.log(`${menu.map(item => `${item.num}) ${item.label}`).join('\n')}`);
+            const choice = (await question('> ')).trim();
+            const selected = menu.find(item => item.num === choice);
+
+            if (!selected) {
+                console.log('🚫 올바른 번호를 입력하세요.');
+                continue;
+            }
+            const action = selected.event;
+
+            try {
+                switch (action) {
+                    case EVENTS.SIGNUP: await doSignup(); break;
+                    case EVENTS.LOGIN: await doLogin(); break;
+                    case EVENTS.GET_PROFILE: await doGetProfile(); break;
+                    case EVENTS.UPDATE_PROFILE: await doUpdateProfile(); break;
+                    case EVENTS.UPDATE_EMAIL: await doUpdateEmail(); break;
+                    case EVENTS.UPDATE_PHONE_NUMBER: await doUpdatePhoneNumber(); break;
+                    case EVENTS.GET_USER_DETAILS: await doUserDetails(); break;
+                    case EVENTS.CHANGE_PW: await doChangePW(); break;
+                    case EVENTS.LOGOUT: await doLogout(); break;
+                    case EVENTS.WITHDRAW: await doWithdraw(); break;
+                }
+
+                const nextState = TRANSITIONS[state] ? TRANSITIONS[state][action] : state;
+                if (nextState) {
+                    state = nextState;
+                    console.log(`➡️ ${selected.label} 성공 → 상태: ${state}`);
+                } else {
+                    console.log(`➡️ ${selected.label} 성공 (상태 변화 없음: ${state})`);
+                }
+
+                if (action === EVENTS.LOGOUT || action === EVENTS.WITHDRAW) {
+                    console.log(`\n${selected.label} 완료. 메인 메뉴로 돌아갑니다.`);
+                    endSession = true;
+                }
+            } catch (err) {
+                console.error('❌ 에러:', err.response?.data?.message || err.message || '알 수 없는 오류 발생');
+                if (err.response?.status === 401) {
+                    console.log('토큰이 유효하지 않습니다. 다시 로그인해주세요.');
+                    state = STATES.UNAUTHENTICATED;
+                    clearTokens();
+                }
+            }
+        }
     }
-
-    // 2) 세션 내부 루프
-    let endSession = false;
-    while (!endSession) {
-      console.log(`\n[${state.toUpperCase()}] 가능한 액션:`);
-      let menu = [];
-      if (state === STATES.UNAUTHENTICATED) {
-        menu = [
-          { num: '1', label: 'signup',     event: EVENTS.SIGNUP },
-          { num: '2', label: 'login',      event: EVENTS.LOGIN  }
-        ];
-      } else if (state === STATES.AUTHENTICATED) {
-        menu = [
-          { num: '1', label: 'getMyInfo',    event: EVENTS.GET_MY_INFO    },
-          { num: '2', label: 'updateMyInfo', event: EVENTS.UPDATE_MY_INFO },
-          { num: '3', label: 'changePW',     event: EVENTS.CHANGE_PW       },
-          { num: '4', label: 'logout',       event: EVENTS.LOGOUT         },
-          { num: '5', label: 'withdraw',     event: EVENTS.WITHDRAW       },
-          { num: '6', label: 'matching',     event: EVENTS.MATCHING       }
-        ];
-      }
-      menu.forEach(item => console.log(`${item.num}) ${item.label}`));
-      const choice = (await question('> ')).trim();
-      const selected = menu.find(item => item.num === choice);
-      if (!selected) {
-        console.log('올바른 번호를 입력하세요.');
-        continue;
-      }
-      const action = selected.event;
-
-      try {
-        // 액션 수행
-        switch(action) {
-          case EVENTS.SIGNUP:         await doSignup();       break;
-          case EVENTS.LOGIN:          await doLogin();        break;
-          case EVENTS.GET_MY_INFO:    await doGetMyInfo();    break;
-          case EVENTS.UPDATE_MY_INFO: await doUpdateMyInfo(); break;
-          case EVENTS.CHANGE_PW:      await doChangePW();     break;
-          case EVENTS.LOGOUT:         await doLogout();       break;
-          case EVENTS.WITHDRAW:       await doWithdraw();     break;
-          case EVENTS.MATCHING:       await doMatching();     break;
-        }
-
-        // 상태 전이
-        const prevState = state;
-        state = TRANSITIONS[state][action];
-        console.log(`→ ${selected.label} → 상태: ${state}`);
-
-        // 로그아웃 또는 탈퇴 시 세션 종료
-        if (action === EVENTS.LOGOUT || action === EVENTS.WITHDRAW) {
-          console.log(`\n${selected.label === EVENTS.LOGOUT ? '로그아웃' : '회원탈퇴'} 완료. 처음으로 돌아갑니다.`);
-          endSession = true;
-        }
-      } catch(err) {
-        console.error('에러:', err.response?.data || err.message);
-        // 토큰 만료 등으로 401 발생하면 비인증 상태로 돌리고 세션 유지
-        if (err.response?.status === 401 && state === STATES.AUTHENTICATED) {
-          console.log('액세스 토큰 만료 → 다시 로그인하세요.');
-          state = STATES.UNAUTHENTICATED;
-        }
-      }
-    }
-
-    // 세션이 끝나고 나서 다시 actor 선택 단계로 돌아감
-  }
 }
 
-// --- helper functions (doSignup, doLogin, ...) 그대로 유지 ---
+// --- 헬퍼 함수들 (API 호출 로직) ---
 
-/**
- * 회원가입: 사용자 정보를 입력받아
- * POST /api/user/signup 호출 후 완료 메시지를 출력합니다.
- */
+/** 회원가입: 사용자 정보를 입력받아 POST /api/user/signup 호출 */
 async function doSignup() {
-    const username = await question('Username: ');
-    const password = await question('Password: ');
-    const name     = await question('Name: ');
-    const phone    = await question('Phone: ');
-    const email    = await question('Email: ');
-    const role     = await question('Role (e.g. ROLE_USER): ');
-    
+    const email = await question('이메일 (로그인ID): ');
+    const password = await question('비밀번호: ');
+    const nickname = await question('닉네임: ');
+    const gender = (await question('성별 (MALE/FEMALE): ')).toUpperCase();
+    const age = parseInt(await question('나이: '));
+    const phoneNumber = await question('전화번호 (010xxxxxxxx): ');
+    const profileImageUrl = await question('프로필 이미지 URL (선택, 없으면 엔터): ');
+
     await axios.post(
-      API.signup,
-      { username, password, name, phone, email, role }
+        API.signup,
+        { email, password, nickname, gender, age, phoneNumber, profileImageUrl: profileImageUrl || null }
     );
-    
-    console.log('회원가입 완료');
+    console.log('✅ 회원가입 완료');
 }
 
-/**
- * 로그인: username/password를 입력받아
- * POST /api/auth/login 호출 후
- * accessToken, refreshToken을 저장합니다.
- */
+/** 로그인: email/password를 입력받아 POST /api/auth/login 호출 후 토큰 저장 */
 async function doLogin() {
-    const username = await question('Username: ');
-    const password = await question('Password: ');
-    const res = await axios.post(API.login, { 
-      username, 
-      password 
+    const email = await question('이메일 (로그인ID): ');
+    const password = await question('비밀번호: ');
+    const res = await axios.post(API.login, {
+        email,
+        password
     });
 
-    tokens.accessToken  = res.data.data.accessToken;
+    tokens.accessToken = res.data.data.accessToken;
     tokens.refreshToken = res.data.data.refreshToken;
-    console.log('로그인 성공');
-
+    saveTokens();
+    // 🟢 중요: 로그인 성공 시 client 인스턴스의 기본 Authorization 헤더 설정
+    client.defaults.headers.common['Authorization'] = `Bearer ${tokens.accessToken}`;
+    console.log('✅ 로그인 성공');
 }
 
-/**
- * 로그아웃: 저장된 refreshToken을 헤더에 담아
- * POST /api/auth/logout 호출 후
- * 로컬에 저장된 토큰을 모두 삭제합니다.
- */
+/** 로그아웃: Refresh Token으로 POST /api/auth/logout 호출 후 로컬 토큰 삭제 */
 async function doLogout() {
-    await axios.post(
-      API.logout,
-      null,
-      { headers: { Authorization: `Bearer ${tokens.refreshToken}` } }
-    );
-    tokens.accessToken = null;
-    tokens.refreshToken = null;
-    console.log('로그아웃 완료');
-}
-
-/**
- * 회원 탈퇴: 저장된 accessToken을 헤더에 담아
- * DELETE /api/user/withdraw 호출 후
- * 로컬에 저장된 토큰을 모두 삭제합니다.
- */
-async function doWithdraw() {
-    //await doRefresh();
-    await client.delete(
-      API.withdraw,
-      { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
-    );
-    tokens.accessToken = null;
-    tokens.refreshToken = null;
-    console.log('회원탈퇴 완료');
-}
-
-async function doGetMyInfo() {
-    //await doRefresh();
-    const res = await client.get(API.getMyInfo, {
-      headers: { Authorization: `Bearer ${tokens.accessToken}` }
-    });
-    console.log('내 정보:', res.data.data);
-}
-
-async function doUpdateMyInfo() {
-    //await doRefresh();
-    const name  = await question('New Name: ');
-    const phone = await question('New Phone: ');
-    const email = await question('New Email: ');
-    const res = await client.put(
-      API.updateMyInfo,    
-      { name, phone, email },
-      { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
-    );
-    console.log('수정된 정보:', res.data.data);
-}
-
-async function doChangePW() {
-  //await doRefresh();
-  const oldPassword = await question('Old Password: ');
-  const newPassword = await question('New Password: ');
-  await client.put(API.changePW,
-    { oldPassword, newPassword },
-    { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
-  );
-  console.log('비밀번호 변경 완료');
-}
-
-async function doRefresh() {
-    console.log("RFToken DEBUGGING!!");
-    console.log(tokens.refreshToken);
     if (!tokens.refreshToken) {
-      throw new Error('로그인 후에만 사용할 수 있습니다.');
+        console.log('⚠️ 리프레시 토큰이 없습니다. 이미 로그아웃되었거나 토큰이 발급되지 않았습니다.');
+        return;
     }
+    // 🟢 중요: axios 기본 인스턴스 사용 (client 대신 axios.post)
+    //         서버의 @RequestBody RefreshTokenRequestDto와 일치하도록 본문에 담아 전송
+    await axios.post(
+        API.logout,
+        { refreshToken: tokens.refreshToken } // Refresh Token을 요청 본문에 담아 전송
+    );
+    clearTokens();
+    console.log('✅ 로그아웃 완료');
+}
+
+/** 회원 탈퇴: Access Token으로 DELETE /api/user/withdraw 호출 후 로컬 토큰 삭제 */
+async function doWithdraw() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    await client.delete(API.withdraw); // 🟢 headers 옵션 제거
+    clearTokens();
+    console.log('✅ 회원탈퇴 완료');
+}
+
+/** 프로필 조회 (닉네임, 프로필 이미지 URL만): GET /api/user/profile 호출 */
+async function doGetProfile() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    const res = await client.get(API.getProfile); // 🟢 headers 옵션 제거
+    console.log('🔎 내 프로필 (닉네임, URL):', res.data.data);
+}
+
+/** 프로필 수정 (닉네임, 프로필 이미지 URL): PUT /api/user/profile 호출 */
+async function doUpdateProfile() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    const nickname = await question('새 닉네임: ');
+    const profileImageUrl = await question('새 프로필 이미지 URL (선택, 없으면 엔터): ');
+    
+    const res = await client.put(
+        API.updateProfile,
+        { nickname, profileImageUrl: profileImageUrl || null }
+    ); // 🟢 headers 옵션 제거
+    console.log('✅ 프로필 수정 완료:', res.data.data);
+}
+
+/** 이메일 변경: PUT /api/user/email 호출 */
+async function doUpdateEmail() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    const newEmail = await question('새 이메일: ');
+    const currentPassword = await question('현재 비밀번호 (본인 인증용): ');
+
+    const res = await client.put(
+        API.updateEmail,
+        { newEmail, currentPassword }
+    ); // 🟢 headers 옵션 제거
+    console.log('✅ 이메일 변경 완료:', res.data.data);
+    console.log('🔔 이메일 변경으로 인해 세션이 종료될 수 있습니다. 다시 로그인해주세요.');
+    state = STATES.UNAUTHENTICATED;
+    clearTokens();
+}
+
+/** 전화번호 변경: PUT /api/user/phone-number 호출 */
+async function doUpdatePhoneNumber() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    const newPhoneNumber = await question('새 전화번호 (010xxxxxxxx): ');
+    const currentPassword = await question('현재 비밀번호 (본인 인증용): ');
+
+    const res = await client.put(
+        API.updatePhoneNumber,
+        { newPhoneNumber, currentPassword }
+    ); // 🟢 headers 옵션 제거
+    console.log('✅ 전화번호 변경 완료:', res.data.data);
+}
+
+/** 사용자 상세 정보 조회 (모든 프로필 정보 포함): GET /api/user/me/details 호출 */
+async function doUserDetails() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    const res = await client.get(API.getUserDetails); // 🟢 headers 옵션 제거
+    console.log('🔎 내 상세 정보:', res.data.data);
+}
+
+/** 비밀번호 변경: PUT /api/user/password 호출 */
+async function doChangePW() {
+    if (!tokens.accessToken) {
+        console.log('⚠️ 액세스 토큰이 없습니다. 로그인 상태가 아닙니다.');
+        return;
+    }
+    const oldPassword = await question('현재 비밀번호: ');
+    const newPassword = await question('새 비밀번호: ');
+    await client.put(API.changePW,
+        { oldPassword, newPassword }
+    ); // 🟢 headers 옵션 제거
+    console.log('✅ 비밀번호 변경 완료. 재로그인해주세요.');
+    state = STATES.UNAUTHENTICATED;
+    clearTokens();
+}
+
+/** 액세스 토큰 재발급: Refresh Token으로 POST /api/auth/refresh 호출 */
+async function doRefresh() {
+    if (!tokens.refreshToken) {
+        console.log('⚠️ 리프레시 토큰이 없어 재발급할 수 없습니다. 로그인해주세요.');
+        throw new Error('리프레시 토큰 없음.');
+    }
+    console.log("⟳ 액세스 토큰 재발급 시도 중...");
+    // 🟢 중요: axios 기본 인스턴스 사용 (client 대신 axios.post)
     const res = await axios.post(
-      API.refresh, null,
-      { headers: { Authorization: `Bearer ${tokens.refreshToken}` } }
+        API.refresh,
+        { refreshToken: tokens.refreshToken } // Refresh Token을 요청 본문에 담아 전송
     );
     tokens.accessToken = res.data.data.accessToken;
-    console.log('⟳ 액세스 토큰 재발급 완료');
-}
-
-async function doMatching() {
-  const count = await question("희망 매칭 인원 수(2~4): ");
-  
-  // 1) 매칭 요청
-  await client.post(
-    API.matching, 
-    { count: parseInt(count) },
-    { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
-  );
-  console.log(`🟡 매칭 요청 완료. 상태 확인 중...`);
-
-  // 2) 매칭 상태 확인 polling
-  let matched = false;
-  while (!matched) {
-    await new Promise(resolve => setTimeout(resolve, 3000)); // 3초 대기
-
-    try {
-      const res = await client.get("http://localhost:8080/api/matching/status", {
-        headers: { Authorization: `Bearer ${tokens.accessToken}` }
-      });
-
-      const data = res.data.data;
-      if (data.status === 'matched') {
-        console.log(`✅ 매칭 완료! 채팅방 ID: ${data.roomId}`);
-        await startChat(data.roomId, tokens.accessToken, rl);
-        matched = true;
-      } else {
-        console.log(`⏳ 매칭 대기 중...`);
-      }
-    } catch (err) {
-      console.error("❌ 상태 확인 중 오류:", err.message);
-      break;
+    if (res.data.data.refreshToken) { 
+        tokens.refreshToken = res.data.data.refreshToken;
     }
-  }
+    saveTokens();
+    // 🟢 중요: 재발급 성공 시 client 인스턴스의 기본 Authorization 헤더 업데이트
+    client.defaults.headers.common['Authorization'] = `Bearer ${tokens.accessToken}`;
+    console.log('✅ 액세스 토큰 재발급 완료');
 }
 
+// 애플리케이션 실행
 run();
-

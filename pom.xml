@@ -103,31 +103,18 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-
-		<!-- WebSocket 의존성 빌드 -->
-		<dependency>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-websocket</artifactId>
-		</dependency>
-		
-		<!-- STOMP 의존성(웹소켓 위에서 메시징 처리, 
-		클라이언트 연동SockJS, STOMP.js 웹 리소스 포함 시) -->
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>sockjs-client</artifactId>
-			<version>1.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>stomp-websocket</artifactId>
-			<version>2.3.4</version>
-		</dependency>
-				
+			
 		<!-- Swagger OpenAPI 3 (springdoc-openapi) -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-ui</artifactId>
 			<version>1.7.0</version>
+		</dependency>
+
+		<!-- Redis (Spring Data Redis) 의존성 추가 --> 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 
 	</dependencies>

@@ -1,5 +1,6 @@
 package com.example.demo.security;
 
+import com.example.demo.service.JwtRedisService;
 import com.example.demo.util.JwtUtils;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import org.springframework.lang.NonNull;
+import java.util.List;
+import java.util.Arrays;
 
 /**
  * @extends OncePerRequestFilter : Spring Security 필터 중 하나
@@ -24,18 +27,26 @@ import org.springframework.lang.NonNull;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
-     * == DI ==
      * JwtUtils : 토큰 파싱, 유효성 검사를 담당하는 유틸 클래스(토큰 관련 예외 처리도 여기에서 담당)
-     * CustomUserDetailsService : 사용자 정보를 DB에서 불러올 때 사용
-     */
+     * jwtRedisService
+     */ 
     private final JwtUtils jwtUtil;
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtRedisService jwtRedisService;
 
-    public JwtAuthenticationFilter(JwtUtils jwtUtil, CustomUserDetailsService userDetailsService) {
+    // JWT 인증 필터 건너뛸 엔드포인트 작성(AccessToken을 들고 있는 경우만 필터링)
+    private static final List<String> EXCLUDE_URLS = Arrays.asList(
+            "/api/auth/login", // 로그인 (토큰 발급 전)
+            "/api/user/signup", // 회원가입 (토큰 발급 전)
+            "/api/auth/refresh", // Refresh Token으로 Access Token 재발급 (Access Token 아님)
+            "/api/auth/logout" // Refresh Token으로 로그아웃 (Access Token 아님)
+    );
+
+    
+    public JwtAuthenticationFilter(JwtUtils jwtUtil, JwtRedisService jwtRedisService) {
         this.jwtUtil = jwtUtil;
-        this.userDetailsService = userDetailsService;
-    }
+        this.jwtRedisService = jwtRedisService;
 
+    }
 
     /**
      * 모든 HTTP 요청마다 실행되는 인증 처리 메서드
@@ -56,7 +67,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
                                     throws ServletException, IOException {
-
         /**
          * JWT 인증 필터 적용 여부 판단
          * 
@@ -71,31 +81,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        /**
-         * 요청에 JWT가 존재하므로, 본 필터에서 인증 처리 시작
-         */
+        // 특정 경로에 대해 JWT 인증 필터 건너뛰기
+        String requestURI = request.getRequestURI();
+        if (EXCLUDE_URLS.contains(requestURI)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
+        // 요청에 JWT가 존재하므로, 본 필터에서 인증 처리 시작
         System.out.println("[JWT Filter] 필터 실행됨: " + request.getRequestURI());
    
-        /**
-         *  토큰 유효성 검사 로직
-         */
+        
+        // 토큰 유효성 검사 로직
         try {
-
-            /**
-             * authHeader에서 'Bearer' 접두어를 제거하고 토큰 본문만 반환
-             * 
-             * JWT 파싱 라이브러리는 '순수한 토큰 문자열'만 받기 때문에 필요
-             * authHeader에 접두어("Bearer") 없을 시 예외(JwtException) 발생
-             */
+            // authHeader에서 'Bearer' 접두어를 제거하고 토큰 본문만 반환 
             String token = JwtUtils.extractTokenFrom(authHeader);
 
-            /**
-             * 유효성 검사
-             * 
-             * 검사 항목 : 서명 검증, 만료 시각, 토큰 무결성
-             * 유효성 검사 통과 못할 시 예외(JwtException) 발생
-             */
+            // 토큰 유효성 검사
             jwtUtil.validation(token);
+
+            // --- AccessToken 블랙리스트 확인 로직 (Redis 도입 시 추가) ---
+            // 이 곳에 RedisService를 주입받아 isAccessTokenBlacklisted(token)을 호출하여
+            // 토큰이 블랙리스트에 있다면 throw new JwtException("Blacklisted token"); 처리.
+            // 예시:
+            if (jwtRedisService.isAccessTokenBlacklisted(token)) {
+                throw new JwtException("Blacklisted token");
+            }
+             
 
             /**
              * SecurityContext에 인증 객체 등록 (위의 토큰 유효성 검사 통과 시)
@@ -107,11 +119,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              * 컨트롤러 등에서 @AuthenticationPrincipal을 통해 인증 유저 객체에 접근 가능
              */
                 
-            //토큰에서 사용자 이름 추출
-            String username = jwtUtil.getUsernameFromToken(token);
+            //토큰에서 사용자 정보 추출
+            Long userId = jwtUtil.getUserIdFromToken(token);
+            String email = jwtUtil.getEmailFromToken(token);
+            List<String> roles = jwtUtil.getRolesFromToken(token);
 
-            // DB에서 사용자 조회 후, CustomUserDetails 생성 < 예외처리 필요한지 확인하기.
-            CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
+            // CustomUserDetails 생성
+            CustomUserDetails userDetails = new CustomUserDetails(userId, email, roles);
 
             // 인증 객체 생성(Principal = userDetails, Credential = null, Authorities = 권한 목록)
             UsernamePasswordAuthenticationToken authentication = 
@@ -158,3 +172,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response); // 다음 필터 or 컨트롤러로 넘겨줌
     }
 }
+
