@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration; // TTL 설정에 사용
+import java.util.List;
 
 @Service
 public class JwtRedisService {
@@ -151,7 +152,22 @@ public class JwtRedisService {
      */
     public void deleteUserProfileCache(Long userId) {
         String key = PROFILE_CACHE_PREFIX + userId.toString();
+        
         redisTemplate.delete(key);
+    }
+
+
+    /**
+     * 해당 유저와 관련된 모든 캐시 데이터를 Redis에서 삭제합니다.
+     * 
+     * @param userId 삭제할 사용자 ID
+     */
+    public void deleteAllUserCache(Long userId) {
+        List<String> keys = List.of(
+            PROFILE_CACHE_PREFIX + userId
+        );
+
+        redisTemplate.delete(keys);
     }
 
 }

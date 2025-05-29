@@ -25,8 +25,15 @@ public class SecurityConfig {
 
     // 인증없이 접근 가능한 URL 패턴 정의
     private static final String[] PUBLIC_URLS = {
-        "/api/auth/**",    // 인증 관련 엔드포인트 (로그인, 토큰 재발급 등)
-        "/api/user/signup" // 회원가입 엔드포인트
+        "/api/auth/**",     // 인증 관련 엔드포인트 (로그인, 토큰 재발급 등)
+        "/api/user/signup", // 회원가입 엔드포인트
+
+        // Swagger 관련 경로
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs/**",
+        "/swagger-resources/**",
+        "/webjars/**"
     };
 
     @Bean
