@@ -113,7 +113,7 @@ public class AuthServiceImpl implements AuthService {
         jwtRedisService.saveRefreshToken(userId, newRefreshToken, jwtUtils.getRefreshTokenMillis());
 
         // 응답 DTO 반환
-        return AccessTokenResponseDto.of(newAccessToken, refreshToken);
+        return AccessTokenResponseDto.of(newAccessToken, newRefreshToken);
     }
 
 }

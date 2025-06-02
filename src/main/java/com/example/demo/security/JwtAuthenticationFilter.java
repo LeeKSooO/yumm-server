@@ -174,7 +174,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              * 
              *  - 결과적으로 클라이언트에게 401 Unauthorized 응답 전달
              */ 
-            throw new JwtAuthenticationException("Invalid or expired JWT token", ex);
+            //throw new JwtAuthenticationException("Invalid or expired JWT token", ex);
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // <--- 여기서 401 상태 코드 설정
+            response.setContentType("application/json"); // 응답 Content-Type 설정
+            response.setCharacterEncoding("UTF-8"); // 인코딩 설정
+
+            String errorMessage;
+            if (ex.getCause() instanceof io.jsonwebtoken.ExpiredJwtException) {
+                errorMessage = "{\"message\": \"JWT 토큰이 만료되었습니다.\"}";
+            } else if ("Blacklisted token".equals(ex.getMessage())) {
+                errorMessage = "{\"message\": \"블랙리스트에 등록된 토큰입니다.\"}";
+            } else {
+                errorMessage = "{\"message\": \"유효하지 않은 JWT 토큰입니다.\"}";
+            }
+
+            response.getWriter().write(errorMessage); // 응답 바디에 오류 메시지 작성
+            return; // 필터 체인 진행을 여기서 중단
+        } catch (Exception e) { // JwtException 외의 다른 예상치 못한 예외 처리
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500 Internal Server Error
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("{\"message\": \"서버 오류가 발생했습니다.\"}");
+            return;
         }
     
         filterChain.doFilter(request, response); // 다음 필터 or 컨트롤러로 넘겨줌

@@ -97,6 +97,7 @@ public class JwtUtils {
     public Long getUserIdFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(1)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -112,6 +113,7 @@ public class JwtUtils {
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(1)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -127,6 +129,7 @@ public class JwtUtils {
     public List<String> getRolesFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(1)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();              
@@ -147,7 +150,11 @@ public class JwtUtils {
      */
     public void validation(String token) throws JwtException {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            Jwts.parserBuilder()
+            .setSigningKey(key)
+            .setAllowedClockSkewSeconds(1)
+            .build()
+            .parseClaimsJws(token);
         } catch (JwtException | IllegalArgumentException ex) {
             throw new JwtException("토큰이 유효하지 않습니다.",ex);
         }
