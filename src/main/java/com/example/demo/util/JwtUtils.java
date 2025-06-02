@@ -8,19 +8,29 @@ import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Value;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
+import java.util.Base64;
 
 @Component
 public class JwtUtils {
-                                                    // 256 byte 이상
-    private static final String SECRET_KEY_BASE64 = "mysecretkeymysecretkeymysecretkeymysecretkeymysecretkeymysecretkeymysecretkeymysecretkey";
-    private static final String BEARER_PREFIX = "Bearer ";
-    private final Key key = Keys.hmacShaKeyFor(java.util.Base64.getDecoder().decode(SECRET_KEY_BASE64)); // Base64 디코딩
-    private final long accessTokenMillis = 1000 * 60 * 30;              // 30 minutes
-    private final long refreshTokenMillis = 1000 * 60 * 60 * 24 * 7;   //  7 days
 
+    private static final String BEARER_PREFIX = "Bearer ";
+    
+    private final Key key;
+
+    @Value("${jwt.access-token-expiration}")
+    private long accessTokenMillis;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenMillis;
+
+    public JwtUtils(@Value("${JWT_SECRET}") String secretKeyBase64) {
+        byte[] keyBytes = Base64.getDecoder().decode(secretKeyBase64);
+        this.key = Keys.hmacShaKeyFor(keyBytes); // key 객체 생성
+    }
 
     /**
      * AccessToken 생성
@@ -87,6 +97,7 @@ public class JwtUtils {
     public Long getUserIdFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(1)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -102,6 +113,7 @@ public class JwtUtils {
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(1)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -117,6 +129,7 @@ public class JwtUtils {
     public List<String> getRolesFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(1)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();              
@@ -137,7 +150,11 @@ public class JwtUtils {
      */
     public void validation(String token) throws JwtException {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            Jwts.parserBuilder()
+            .setSigningKey(key)
+            .setAllowedClockSkewSeconds(1)
+            .build()
+            .parseClaimsJws(token);
         } catch (JwtException | IllegalArgumentException ex) {
             throw new JwtException("토큰이 유효하지 않습니다.",ex);
         }

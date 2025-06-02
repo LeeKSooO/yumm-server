@@ -184,7 +184,7 @@ public class UserServiceImpl implements UserService {
         // 사용자 조회(존재하지 않으면 예외처리)
         User user = findUserByIdOrThrow(userId);
 
-        // 회원 탈퇴 시, 유저와 관련된 Redis에 캐싱된 정보 다 날리는 로직 필요
+        // 회원 탈퇴 시, 캐싱된 유저 데이터 모두 삭제
         jwtRedisService.deleteAllUserCache(userId);
 
         // 사용자 엔티티 DB에서 삭제

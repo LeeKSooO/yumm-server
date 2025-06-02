@@ -36,9 +36,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     // JWT 인증 필터 건너뛸 엔드포인트 작성(AccessToken을 들고 있는 경우만 필터링)
     private static final List<String> EXCLUDE_URLS = Arrays.asList(
             "/api/auth/login", // 로그인 (토큰 발급 전)
-            "/api/user/signup", // 회원가입 (토큰 발급 전)
-            "/api/auth/refresh", // Refresh Token으로 Access Token 재발급 (Access Token 아님)
-            "/api/auth/logout" // Refresh Token으로 로그아웃 (Access Token 아님)
+            "/api/user/signup",     // 회원가입 (토큰 발급 전)
+            "/api/auth/refresh",    // Refresh Token으로 Access Token 재발급 (Access Token 아님)
+            "/api/auth/logout",     // Refresh Token으로 로그아웃 (Access Token 아님)
+            "/v3/api-docs",         // Swagger API
+            "/v3/api-docs/**",      // Swagger API
+            "/swagger-ui.html",     // Swagger API
+            "/swagger-ui/**"        // Swagger API
     );
 
     
@@ -67,26 +71,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
                                     throws ServletException, IOException {
-        /**
-         * JWT 인증 필터 적용 여부 판단
-         * 
-         * Authorization 헤더에서 JWT 추출
-         * ## 클라이언트는 HTTP 요청 헤더에 ** Authorization: Bearer <token> ** 형태로 전달해야함
-         * Authorization 헤더가 없거나 "Bearer "로 시작하지 않으면,
-         * 인증 불필요한 요청으로 간주하고 필터 그냥 통과시킴
-         */
+                            
+        System.out.println("REQUEST URL CHECK 1 : " + request.getRequestURI());
+
+        // 특정 경로에 대해 JWT 인증 필터 건너뛰기
+        String requestURI = request.getRequestURI();
+        if (EXCLUDE_URLS.stream().anyMatch(requestURI::startsWith)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        System.out.println("REQUEST URL CHECK 2 : " + request.getRequestURI());
+        
+        // JWT 인증 필터 적용 여부 판단
+        // 
+        // Authorization 헤더에서 JWT 추출
+        // ## 클라이언트는 HTTP 요청 헤더에 ** Authorization: Bearer <token> ** 형태로 전달해야함
+        // Authorization 헤더가 없거나 "Bearer "로 시작하지 않으면,
+        // 인증 불필요한 요청으로 간주하고 필터 그냥 통과시킴
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 특정 경로에 대해 JWT 인증 필터 건너뛰기
-        String requestURI = request.getRequestURI();
-        if (EXCLUDE_URLS.contains(requestURI)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
         
         // 요청에 JWT가 존재하므로, 본 필터에서 인증 처리 시작
         System.out.println("[JWT Filter] 필터 실행됨: " + request.getRequestURI());
@@ -166,7 +174,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              * 
              *  - 결과적으로 클라이언트에게 401 Unauthorized 응답 전달
              */ 
-            throw new JwtAuthenticationException("Invalid or expired JWT token", ex);
+            //throw new JwtAuthenticationException("Invalid or expired JWT token", ex);
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // <--- 여기서 401 상태 코드 설정
+            response.setContentType("application/json"); // 응답 Content-Type 설정
+            response.setCharacterEncoding("UTF-8"); // 인코딩 설정
+
+            String errorMessage;
+            if (ex.getCause() instanceof io.jsonwebtoken.ExpiredJwtException) {
+                errorMessage = "{\"message\": \"JWT 토큰이 만료되었습니다.\"}";
+            } else if ("Blacklisted token".equals(ex.getMessage())) {
+                errorMessage = "{\"message\": \"블랙리스트에 등록된 토큰입니다.\"}";
+            } else {
+                errorMessage = "{\"message\": \"유효하지 않은 JWT 토큰입니다.\"}";
+            }
+
+            response.getWriter().write(errorMessage); // 응답 바디에 오류 메시지 작성
+            return; // 필터 체인 진행을 여기서 중단
+        } catch (Exception e) { // JwtException 외의 다른 예상치 못한 예외 처리
+            SecurityContextHolder.clearContext();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500 Internal Server Error
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("{\"message\": \"서버 오류가 발생했습니다.\"}");
+            return;
         }
     
         filterChain.doFilter(request, response); // 다음 필터 or 컨트롤러로 넘겨줌
