@@ -1,4 +1,4 @@
-package com.example.demo.dto;
+package com.example.demo.dto.auth;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,10 +12,12 @@ import lombok.NoArgsConstructor;
 public class AccessTokenResponseDto {
 
     private String accessToken;
+    private String refreshToken;
 
-    public static AccessTokenResponseDto of(String accessToken) {
+    public static AccessTokenResponseDto of(String accessToken, String refreshToken) {
         return AccessTokenResponseDto.builder()
             .accessToken(accessToken)
+            .refreshToken(refreshToken)
             .build();
     }
 }

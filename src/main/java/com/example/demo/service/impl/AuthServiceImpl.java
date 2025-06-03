@@ -1,122 +1,119 @@
 package com.example.demo.service.impl;
-import com.example.demo.service.AuthService;
 
-import com.example.demo.domain.RefreshToken;
+import com.example.demo.service.AuthService;
+import com.example.demo.service.JwtRedisService;
 import com.example.demo.domain.User;
-import com.example.demo.dto.AccessTokenResponseDto;
-import com.example.demo.dto.AuthRequestDto;
-import com.example.demo.dto.AuthResponseDto;
+import com.example.demo.dto.auth.AccessTokenResponseDto;
+import com.example.demo.dto.auth.LoginRequest;
+import com.example.demo.dto.auth.AuthResponseDto;
+import com.example.demo.dto.auth.LogoutRequest;
 import com.example.demo.exception.CustomException;
 import com.example.demo.exception.ErrorCode;
-import com.example.demo.repository.RefreshTokenRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.util.JwtUtils;
+
+import jakarta.transaction.Transactional;
+
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
-import java.time.Instant;
-
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
        
     private final UserRepository            userRepository;
-    private final RefreshTokenRepository    refreshTokenRepository;
     private final PasswordEncoder           passwordEncoder;
     private final JwtUtils                  jwtUtils;
+    private final JwtRedisService           jwtRedisService;
 
-
-    /**
-    * 사용자 로그인 처리
-    */
+    /** 사용자 로그인 처리 */
     @Override
-    public AuthResponseDto login(AuthRequestDto request) {
-
-        String username = request.getUsername();
+    public AuthResponseDto login(LoginRequest loginRequest) {
+        String email = loginRequest.getEmail();
 
         // 사용자 조회
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 비밀번호 검증
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        // Access, Refresh 토큰 생성
-        String accessToken  = jwtUtils.generateAccessToken(username);
-        String refreshToken = jwtUtils.generateRefreshToken(username);
-
-        // Refresh Token 저장
-        RefreshToken rt = RefreshToken.builder()
-            .token(refreshToken)
-            .username(username)                  // 유효기간 : 7일
-            .expiryDate(Instant.now().plusMillis(jwtUtils.getRefreshTokenMillis()))
-            .build();
-            refreshTokenRepository.save(rt);
-
+        // AccessToken 생성
+        List<String> roles = List.of(user.getRole().getRoleName());
+        String accessToken = jwtUtils.generateAccessToken(user.getId(), user.getEmail(), roles);
+        
+        // RefreshToken 생성 및 Redis에 저장(userId가 key값)
+        String refreshToken = jwtUtils.generateRefreshToken(user.getId(),user.getEmail(),roles);
+        jwtRedisService.saveRefreshToken(user.getId(), refreshToken, jwtUtils.getRefreshTokenMillis());
+       
         // 응답 DTO 반환
         return AuthResponseDto.of(accessToken, refreshToken);
     }
 
-    /**
-     * 사용자 로그아웃 처리
-     * 
-     * 전달받은 리프레시 토큰이 유효하고 DB에 존재하면 삭제
-     */
+
+    /** 사용자 로그아웃 처리 */
     @Override
-    public void logout(String token) {
+    @Transactional
+    public void logout(LogoutRequest logoutRequest) {
+        String refreshToken = logoutRequest.getRefreshToken();
 
-        // 원문 token 문자열 파싱(bearer token 값만 받음)
-        String refreshToken = JwtUtils.extractTokenFrom(token); 
+        // refreshToken 유효성 검증
+        jwtUtils.validation(refreshToken);
 
-        // 토큰 존재하면 삭제
-        refreshTokenRepository.findByToken(refreshToken).ifPresent(refreshTokenRepository::delete);
+        // token에서 userId 추출
+        Long userId = jwtUtils.getUserIdFromToken(refreshToken);
+
+        // Redis에 저장된 rfToken과 요청된 토큰 일치 여부
+        String storedRefreshToken = jwtRedisService.getRefreshToken(userId);
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            // 이 경우, 유효하지 않은 (탈취되었거나 이미 사용된) 토큰으로 간주
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+        
+        // userId로 Redis에서 Refresh Token 삭제
+        jwtRedisService.deleteRefreshToken(userId); 
+       
+        // 인증 객체 삭제(SecurityContext Clear)
+        SecurityContextHolder.clearContext();      
     }
 
-    /**
-     * 액세스 토큰 재발급 처리
-     * 
-     * Authorization 헤더 또는 쿠키에서 리프레시 토큰을 추출하고,
-     * 유효성을 검사한 후 새 액세스 토큰을 발급
-     */
+
+    /** Access Token 재발급 처리 */
     @Override
     public AccessTokenResponseDto refreshAccessToken(String authorizationHeader, String refreshTokenCookie) {
-
         // JwtUtils를 통해 validation 검사 및 토큰 추출
         String refreshToken = JwtUtils.extractTokenFromHeaderOrCookie(authorizationHeader, refreshTokenCookie);
 
-        // DB에서 토큰 조회
-        RefreshToken rt = refreshTokenRepository.findByToken(refreshToken)
-            .orElseThrow(() -> new CustomException(ErrorCode.INVALID_TOKEN));
-    
-        // 만료된 Refresh Token이면 DB에서 삭제, 재로그인 필요
-        validateTokenExpiry(rt);
+        // RefreshToken 유효성 검증
+        jwtUtils.validation(refreshToken);
+
+        // RefreshToken에서 userId 추출
+        Long userId = jwtUtils.getUserIdFromToken(refreshToken);
+
+        // Redis에 저장된 RefreshToken과 재발급을 위해 요청받은 토큰 일치 여부 확인
+        String storedRefreshToken = jwtRedisService.getRefreshToken(userId);
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            // Redis에 없거나, 클라이언트가 보낸 토큰과 Redis의 토큰이 일치하지 않는 경우
+            // -> 유효하지 않은 Refresh Token이므로 예외처리 
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+
+        // 새 Access Token 생성 (email, roles 포함)
+        List<String> roles = jwtUtils.getRolesFromToken(refreshToken);
+        String email = jwtUtils.getEmailFromToken(refreshToken);
+        String newAccessToken = jwtUtils.generateAccessToken(userId, email, roles);
+
+        // Refresh Token 재발급 (슬라이딩 윈도우 방식)
+        String newRefreshToken = jwtUtils.generateRefreshToken(userId, email, roles);
+        jwtRedisService.saveRefreshToken(userId, newRefreshToken, jwtUtils.getRefreshTokenMillis());
 
         // 응답 DTO 반환
-        String newAccessToken = jwtUtils.generateAccessToken(rt.getUsername());
-        return AccessTokenResponseDto.of(newAccessToken);
-    }
-
-
-// =====================================================
-// Helper Methods
-// =====================================================
-
-    /**
-     * RefreshToken 만료 여부 검사
-     * 
-     * 토큰이 만료된 경우, DB에서 해당 토큰을 삭제하고 401 예외 처리
-     */
-    private void validateTokenExpiry(RefreshToken rt) {
-
-        if (rt.getExpiryDate().isBefore(Instant.now())) {
-
-            refreshTokenRepository.delete(rt);
-
-            throw new CustomException(ErrorCode.EXPIRED_TOKEN);
-        }
+        return AccessTokenResponseDto.of(newAccessToken, newRefreshToken);
     }
 
 }

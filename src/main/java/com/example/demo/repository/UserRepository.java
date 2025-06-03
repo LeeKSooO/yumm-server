@@ -5,14 +5,11 @@ import java.util.Optional;
 
 
 public interface UserRepository extends JpaRepository<User, Long> {
-    
-    // username으로 회원 검색할 수 있게 메서드 추가
-    Optional<User> findByUsername(String username);
-    
-    // email로 회원 검색
+        
+    // email로 회원 검색(로그인 ID)
     Optional<User> findByEmail(String email);
 
     // phone으로 회원 검색
-    Optional<User> findByPhone(String phone);
+    Optional<User> findByPhoneNumber(String phoneNumber);
 
 }
