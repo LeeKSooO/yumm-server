@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import com.example.demo.enums.Gender;
+
 
 @Entity // JPA 엔티티(=DB 테이블과 매핑) 
 @Table(name = "users")

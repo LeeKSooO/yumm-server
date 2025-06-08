@@ -1,6 +1,6 @@
 package com.example.demo.dto.users;
 
-import com.example.demo.domain.Gender;
+import com.example.demo.enums.Gender;
 import com.example.demo.domain.User;
 import com.example.demo.domain.UserRole;
 import lombok.Builder;
