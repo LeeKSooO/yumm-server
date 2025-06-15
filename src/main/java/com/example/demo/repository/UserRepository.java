@@ -11,5 +11,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // phone으로 회원 검색
     Optional<User> findByPhoneNumber(String phoneNumber);
-
+    
+    // 사용자 ID로 FCM 토큰 조회
+    Optional<String> findFcmTokenById(Long id);
 }

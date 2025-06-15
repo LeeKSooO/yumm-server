@@ -8,7 +8,7 @@ import com.example.demo.exception.CustomException;
 import com.example.demo.exception.ErrorCode;
 import com.example.demo.service.JwtRedisService;
 import com.example.demo.domain.UserRole;
-import com.example.demo.domain.Gender;
+import com.example.demo.enums.Gender;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;

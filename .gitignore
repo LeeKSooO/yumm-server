@@ -34,3 +34,9 @@ build/
 
 ### node modules ###
 node_modules/
+
+### Firebase ###
+**/jababchu-firebase.json
+**/firebase-*.json
+**/google-services.json
+**/GoogleService-Info.plist

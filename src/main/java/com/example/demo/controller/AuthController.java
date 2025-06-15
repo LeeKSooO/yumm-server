@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import io.swagger.v3.oas.annotations.Operation;
-
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Content;
 
 /**
  * 인증(Authentication) 및 권한(Authorization) 관련 API를 처리하는 컨트롤러입니다.
@@ -30,8 +31,19 @@ public class AuthController {
      * @return 로그인 성공 시 발급된 Access Token 및 Refresh Token 정보를 포함하는 응답
      */
     @PostMapping("/login")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "로그인 성공 시 발급된 Access Token 및 Refresh Token 정보를 포함하는 응답",
+        content = @Content(schema = @Schema(implementation = AuthResponseDto.class))
+    )
     @Operation(summary = "사용자 로그인", description = "아이디/비밀번호를 통해 로그인하고 JWT를 반환합니다.")
-    public ResponseEntity<ApiResponse<AuthResponseDto>> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<ApiResponse<AuthResponseDto>> login(
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "로그인 요청에 필요한 아이디(이메일)와 비밀번호를 담은 DTO",
+        required = true,
+        content = @Content(schema = @Schema(implementation = LoginRequest.class))
+    )   
+    @RequestBody LoginRequest loginRequest) {
 
         AuthResponseDto response = authService.login(loginRequest);
 
@@ -49,7 +61,19 @@ public class AuthController {
      */
     @PostMapping("/logout")
     @Operation(summary = "사용자 로그아웃", description = "refreshToken을 요청 본문에 담아 세션을 무효화하여 로그아웃 처리합니다.")
-    public ResponseEntity<ApiResponse<Void>> logout(@RequestBody LogoutRequest logoutRequest) {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "로그아웃 성공 메시지를 포함하는 응답"
+    )
+    public ResponseEntity<ApiResponse<Void>> logout(
+    @io.swagger.v3.oas.annotations.parameters.RequestBody
+    (
+        description = "Refresh Token을 포함하는 요청 DTO",
+        required = true,
+        content = @Content(schema = @Schema(implementation = LogoutRequest.class))
+    )    
+    @RequestBody LogoutRequest logoutRequest) {
         
         authService.logout(logoutRequest);
 
@@ -68,6 +92,12 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     @Operation(summary = "액세스 토큰 재발급", description = "리프레시 토큰을 기반으로 새로운 액세스 토큰을 발급합니다. 헤더 또는 쿠키에서 refreshToken을 전달합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "새로 발급된 Access Token 및 갱신된 Refresh Token 정보를 포함하는 응답",
+        content = @Content(schema = @Schema(implementation = AccessTokenResponseDto.class))
+    )
     public ResponseEntity<ApiResponse<AccessTokenResponseDto>> refreshAccessToken(
                                         @RequestHeader(value = "Authorization", required = false) String authorizationHeader, 
                                         @CookieValue(name = "refreshToken", required = false) String refreshTokenCookie) {

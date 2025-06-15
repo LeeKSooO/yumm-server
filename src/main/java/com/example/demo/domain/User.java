@@ -5,10 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import com.example.demo.enums.Gender;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity // JPA 엔티티(=DB 테이블과 매핑) 
 @Table(name = "users")
-@Getter 
+@Getter
+@Setter 
 @NoArgsConstructor 
 @AllArgsConstructor 
 @Builder 
@@ -44,7 +50,14 @@ public class User {
     @Column(nullable = false, length = 20) // DB 컬럼 설정
     private UserRole role; // 사용자 권한 (ex: ROLE_USER, ROLE_ADMIN)
 
+    @ManyToMany(mappedBy = "members")
+    private List<ChatRoom> chatRooms = new ArrayList<>();
 
+    @Column(nullable = false, length = 500)
+    private String fcmToken; // FCM 토큰 (푸시 알림용)
+
+    @Column(nullable = false)
+    private boolean isNotificationEnabled;// 알림 설정 필드 추가
 
     public void updateProfile(String nickname, String profileImageUrl) {
         if (nickname == null || nickname.trim().isEmpty()) {
@@ -65,7 +78,7 @@ public class User {
         if (newEmail == null || newEmail.trim().isEmpty()) {
             throw new IllegalArgumentException("이메일은 필수 입력 항목입니다.");
         }
-            this.email = newEmail;
+        this.email = newEmail;
     }
     
     public void updatePhoneNumber(String newPhoneNumber) {

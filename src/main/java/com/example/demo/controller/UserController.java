@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -34,7 +36,19 @@ public class UserController {
      */
     @PostMapping("/signup")
     @Operation(summary = "사용자 회원가입", description = "회원가입 요청 정보를 받아 새 사용자를 등록합니다.")
-    public ResponseEntity<ApiResponse<Void>> signup(@RequestBody SignupRequest signupRequest) {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "회원가입 성공 메시지를 포함하는 응답"
+    )
+    public ResponseEntity<ApiResponse<Void>> signup(
+    @io.swagger.v3.oas.annotations.parameters.RequestBody
+    (
+        description = "회원가입에 필요한 사용자 정보를 담은 DTO (이메일, 비밀번호, 닉네임 등)",
+        required = true,
+        content = @Content(schema = @Schema(implementation = SignupRequest.class))
+    )    
+    @RequestBody SignupRequest signupRequest) {
         
         userService.signup(signupRequest);
         
@@ -51,6 +65,12 @@ public class UserController {
      */
     @GetMapping("/profile")
     @Operation(summary = "회원 프로필 조회", description = "현재 로그인된 사용자의 프로필 정보를 조회합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "조회된 사용자 프로필 정보를 담은 DTO",
+        content = @Content(schema = @Schema(implementation = ProfileResponse.class))
+    )
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(@AuthenticationPrincipal CustomUserDetails userDetails) {
     
         ProfileResponse profileResponse = userService.getProfile(userDetails.getId());
@@ -68,8 +88,22 @@ public class UserController {
      * @return 업데이트된 사용자 프로필 정보를 담은 DTO.
      */
     @PutMapping("/profile")
-    public ResponseEntity<ApiResponse<ProfileResponse>> updateProfile(@AuthenticationPrincipal CustomUserDetails userDetails,
-                                                                      @RequestBody ProfileUpdateRequest updateRequest) {
+    @Operation(summary = "회원 프로필 수정", description = "현재 로그인된 사용자의 프로필 정보(닉네임, 프로필 이미지 URL)를 업데이트합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "업데이트된 사용자 프로필 정보를 담은 DTO",
+        content = @Content(schema = @Schema(implementation = ProfileResponse.class))
+    )
+    public ResponseEntity<ApiResponse<ProfileResponse>> updateProfile(
+    @AuthenticationPrincipal CustomUserDetails userDetails,
+    @io.swagger.v3.oas.annotations.parameters.RequestBody
+    (
+        description = "업데이트할 닉네임과 프로필 이미지 URL 정보를 담은 DTO",
+        required = true,
+        content = @Content(schema = @Schema(implementation = ProfileUpdateRequest.class))
+    )
+    @RequestBody ProfileUpdateRequest updateRequest) {
         ProfileResponse profileResponse = userService.updateProfile(userDetails.getId(), updateRequest);
 
         return ApiResponse.ok("프로필 수정 완료", profileResponse);
@@ -85,9 +119,22 @@ public class UserController {
      * @return 업데이트된 사용자 이메일 정보를 담은 DTO.
      */
     @PutMapping("/email")
-    @Operation(summary = "사용자 이메일 변경", description = "현재 비밀번호 인증 후 이메일을 변경합니다.")
-    public ResponseEntity<ApiResponse<EmailResponse>> updateEmail(@AuthenticationPrincipal CustomUserDetails userDetails,
-                                                                  @RequestBody EmailUpdateRequest updateRequest) {
+    @Operation(summary = "사용자 이메일 변경", description = "현재 로그인된 사용자의 이메일 주소를 변경합니다. 변경 후에는 기존 토큰이 무효화될 수 있습니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "업데이트된 사용자 이메일 정보를 담은 DTO",
+        content = @Content(schema = @Schema(implementation = EmailResponse.class))
+    )
+    public ResponseEntity<ApiResponse<EmailResponse>> updateEmail(
+    @AuthenticationPrincipal CustomUserDetails userDetails,
+    @io.swagger.v3.oas.annotations.parameters.RequestBody
+    (
+        description = "변경할 새로운 이메일 주소와 현재 비밀번호를 담은 DTO",
+        required = true,
+        content = @Content(schema = @Schema(implementation = EmailUpdateRequest.class))
+    )
+    @RequestBody EmailUpdateRequest updateRequest) {
         EmailResponse emailResponse = userService.updateEmail(userDetails.getId(), updateRequest);
 
         return ApiResponse.ok("이메일이 성공적으로 변경되었습니다.", emailResponse);
@@ -104,6 +151,12 @@ public class UserController {
      */
     @PutMapping("/phone-number")
     @Operation(summary = "사용자 전화번호 변경", description = "현재 비밀번호 인증 후 전화번호를 변경합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "업데이트된 사용자 전화번호 정보를 담은 DTO",
+        content = @Content(schema = @Schema(implementation = PhoneNumberResponse.class))
+    )
     public ResponseEntity<ApiResponse<PhoneNumberResponse>> updatePhoneNumber(@AuthenticationPrincipal CustomUserDetails userDetails,
                                                                               @RequestBody PhoneNumberUpdateRequest updateRequest) {
         PhoneNumberResponse pNumResponse = userService.updatePhoneNumber(userDetails.getId(), updateRequest);
@@ -122,6 +175,12 @@ public class UserController {
      */
     @GetMapping("/me/details")
     @Operation(summary = "사용자 상세 정보 조회", description = "현재 로그인한 사용자의 모든 상세 프로필 정보를 반환합니다. 전화번호, 이메일 등 민감 정보 포함.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "조회된 사용자 상세 정보를 담은 DTO",
+        content = @Content(schema = @Schema(implementation = UserInfoDetailsResponse.class))
+    )
     public ResponseEntity<ApiResponse<UserInfoDetailsResponse>> getUserDetails(@AuthenticationPrincipal CustomUserDetails userDetails) {
 
         UserInfoDetailsResponse userDetailsResponse = userService.getUserDetails(userDetails.getId());
@@ -140,8 +199,20 @@ public class UserController {
      */
     @PutMapping("/password")
     @Operation(summary = "사용자 비밀번호 변경", description = "현재 비밀번호와 새로운 비밀번호를 입력받아 비밀번호를 변경합니다.")
-    public ResponseEntity<ApiResponse<Void>> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails, 
-                                                            @RequestBody ChangePasswordRequest updateRequest) {
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "비밀번호 변경 성공 메시지를 포함하는 응답"
+    )
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+    @AuthenticationPrincipal CustomUserDetails userDetails,
+    @io.swagger.v3.oas.annotations.parameters.RequestBody
+    (
+        description = "현재 비밀번호와 새로운 비밀번호 정보를 담은 DTO",
+        required = true,
+        content = @Content(schema = @Schema(implementation = ChangePasswordRequest.class))
+    )
+    @RequestBody ChangePasswordRequest updateRequest) {
         userService.changePassword(userDetails.getId(), updateRequest);
 
         return ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.");                           
@@ -158,6 +229,11 @@ public class UserController {
      */
     @DeleteMapping("/withdraw")
     @Operation(summary = "회원 탈퇴", description = "회원 탈퇴를 처리합니다. 사용자의 모든 데이터가 삭제됩니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse
+    (
+        responseCode = "200",
+        description = "회원 탈퇴 성공 메시지를 포함하는 응답"
+    )
     public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
     
         userService.withdraw(userDetails.getId());

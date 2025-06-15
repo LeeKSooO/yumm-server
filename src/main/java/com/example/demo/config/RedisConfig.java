@@ -1,14 +1,41 @@
 package com.example.demo.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import com.example.demo.dto.chat.ChatRoomMessage;
+import com.example.demo.service.impl.ChatServiceImpl;
 
 @Configuration
 public class RedisConfig {
+
+    @Value("${spring.data.redis.host}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port}")
+    private int redisPort;
+
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory() {
+        return new LettuceConnectionFactory(redisHost, redisPort);
+    }
+
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate() {
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(redisConnectionFactory());
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(new StringRedisSerializer());
+        return redisTemplate;
+    }
 
     /**
      * RedisTemplate Bean : Redis 서버와 상호작용 Config
@@ -19,26 +46,31 @@ public class RedisConfig {
      * @return 설정된 RedisTemplate 인스턴스
      */
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+    public RedisTemplate<String, ChatRoomMessage> chatRoomMessageRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, ChatRoomMessage> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        return template;
+    }
 
-        // 생성된 RedisTemplate에 Redis 서버와 연결을 담당할 ConnectionFactory 주입
-        // redisTemplate이 실제 Redis 서버와 통신
-        redisTemplate.setConnectionFactory(connectionFactory);
+    @Bean
+    public RedisMessageListenerContainer redisMessageListener(RedisConnectionFactory connectionFactory,
+                                                            MessageListenerAdapter listenerAdapter,
+                                                            ChannelTopic channelTopic) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener(listenerAdapter, channelTopic);
+        return container;
+    }
 
-        // -- Key와 Value의 직렬화 방식 설정 --
-        // Key 직렬화 - Redis키를 String 타입으로 저장 및 읽기
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
+    @Bean
+    public MessageListenerAdapter messageListenerAdapter(ChatServiceImpl chatService) {
+        return new MessageListenerAdapter(chatService, "sendMessage");
+    }
 
-        // Value 직렬화 - Redis값을 Object 타입으로 저장(자바 객체 JSON 형태로 직렬화)
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-
-        // Hash Key와 Hash Value도 직렬화 방식
-        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
-        
-        redisTemplate.afterPropertiesSet(); // 모든 속성이 설정된 후 초기화를 수행합니다.
-        
-        return redisTemplate;
+    @Bean
+    public ChannelTopic channelTopic() {
+        return new ChannelTopic("chatroom");
     }
 }

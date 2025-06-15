@@ -1,54 +1,54 @@
 package com.example.demo.service;
 
-import com.example.demo.constant.RequestStatus;
-import com.example.demo.dto.MatchRequestDto;
-import com.example.demo.dto.MatchResponseDto;
-import com.example.demo.dto.MatchStatusDto;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.example.demo.dto.matching.MatchingRequestCreateRequest;
+import com.example.demo.dto.matching.MatchingResultResponse;
 
-@Service
+/**
+ * 매칭 시스템 관련 서비스 인터페이스
+ * 
+ * 실시간 매칭, 매칭 등록제 기능을 정의합니다.
+ */
 public interface MatchingService {
-
-    RequestStatus pending = RequestStatus.PENDING;
+    
+    /**
+     * 실시간 매칭을 요청합니다.
+     * 1분 이내에 매칭이 성공하면 채팅방이 생성되고, 실패하면 요청이 만료됩니다.
+     *
+     * @param userId 매칭을 요청한 사용자의 ID
+     * @param request 매칭 요청 정보를 담은 DTO
+     */
+    void requestInstantMatching(Long userId, MatchingRequestCreateRequest request);
 
     /**
-     * 1) 클라이언트 요청을 DB에 PENDING 상태로 저장
+     * 실시간 매칭 요청을 취소합니다.
+     *
+     * @param userId 매칭을 취소하려는 사용자의 ID
+     * @param requestId 취소할 매칭 요청의 ID
      */
-    public MatchResponseDto createRequest(Long id,
-            MatchRequestDto requestDto);
+    void cancelInstantMatching(Long userId, Long requestId);
 
     /**
-     * 5초마다 “풀매치(인원·지역·음식)” 시도
+     * 매칭 등록제에 매칭을 등록합니다.
+     * 매 시간 배치 처리되며, 선호 시간 2시간 전까지 유효합니다.
+     *
+     * @param userId 매칭을 등록한 사용자의 ID
+     * @param request 매칭 요청 정보를 담은 DTO
      */
-    @Scheduled(fixedDelay = 5_000)
-    @Transactional
-    public void matchByAllConditions();
-
-    /*
-     * 30초마다 "지역매치" 시도
-     */
-    @Scheduled(fixedDelay = 30_000)
-    @Transactional
-    public void matchByRegionAndSize();
+    void registerScheduledMatching(Long userId, MatchingRequestCreateRequest request);
 
     /**
-     * 30초마다 “1분 이상 대기” 요청은 CANCELED로 전환
+     * 등록된 매칭 요청을 취소합니다.
+     *
+     * @param userId 매칭을 취소하려는 사용자의 ID
+     * @param requestId 취소할 매칭 요청의 ID
      */
-    @Scheduled(fixedDelay = 30_000)
-    @Transactional
-    public void cancelTimedOutRequests();
+    void cancelScheduledMatching(Long userId, Long requestId);
 
     /**
-     * 본인이 보낸 매칭 요청을 취소
+     * 매칭 결과를 조회합니다.
+     *
+     * @param requestId 조회할 매칭 요청의 ID
+     * @return 매칭 결과 정보를 담은 DTO
      */
-    @Transactional
-    public void cancelRequest(Long userId, Long matchingId);
-
-    /*
-     * 내 매칭 상태 조회
-     */
-    @Transactional(readOnly = true)
-    public MatchStatusDto getRequestStatus(Long userId);
+    MatchingResultResponse getMatchingResult(Long requestId);
 }

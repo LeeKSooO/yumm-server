@@ -5,6 +5,12 @@ import org.springframework.http.ResponseEntity;
 
 import lombok.Getter;
 
+/**
+ * API 응답을 표준화하기 위한 클래스입니다.
+ * 모든 API 응답은 이 클래스를 통해 일관된 형식으로 반환됩니다.
+ *
+ * @param <T> 응답 데이터의 타입
+ */
 @Getter
 public class ApiResponse<T> {
 
@@ -27,14 +33,8 @@ public class ApiResponse<T> {
         return new ApiResponse<>(message, null);
     }
 
-    
-    // ============================
-    // 전역 공통 응답 호출부
-    // ============================
-
     /**
-     * 일반적인 200 OK 응답 반환
-     * 
+     * 200 OK 응답을 생성합니다.
      * 주어진 메시지와 데이터를 포함한 JSON 본문을 생성합니다.
      */
     public static <T> ResponseEntity<ApiResponse<T>> ok(String message, T data) {
@@ -42,9 +42,8 @@ public class ApiResponse<T> {
     }
 
     /**
-     * 일반적인 200 OK 응답 반환
-     * 
-     * 메시지만 포함하고 data는 null
+     * 200 OK 응답을 생성합니다.
+     * 주어진 메시지만 포함하고 데이터는 null로 설정합니다.
      * 주로 단순 성공 알림(비밀번호 변경 성공 등)
      */
     public static ResponseEntity<ApiResponse<Void>> ok(String message) {
@@ -52,13 +51,16 @@ public class ApiResponse<T> {
     }
 
     /**
-     * 리소스 생성 성공을 의미하는 201 Created 응답 반환
-     * 
-     * 메시지로 클라이언트에게 성공 안내만, data는 null
+     * 201 Created 응답을 생성합니다.
+     * 주어진 메시지만 포함하고 데이터는 null로 설정합니다.
      * 회원가입, 채팅방 생성 등의 기능에 사용
      */
     public static ResponseEntity<ApiResponse<Void>> created(String message) {
         return ResponseEntity.status(HttpStatus.CREATED).body(messageOnly(message));
     }
 
+    /** 에러 응답 생성 */
+    public static <T> ResponseEntity<ApiResponse<T>> error(String message, T data) {
+        return ResponseEntity.ok(of(message, data));
+    }
 }
