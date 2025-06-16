@@ -147,7 +147,7 @@ public class UserController {
         return ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.");                           
     }
 
-    
+
     /**
      * 회원 탈퇴 API.
      * 현재 로그인된 사용자의 계정을 시스템에서 삭제합니다. 이 작업은 되돌릴 수 없습니다.

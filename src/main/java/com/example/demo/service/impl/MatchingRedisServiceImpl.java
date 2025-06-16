@@ -35,7 +35,16 @@ public class MatchingRedisServiceImpl implements MatchingRedisService {
             String memberKey = String.valueOf(request.getId());
 
             matchingRedisTemplate.opsForHash().put(key, memberKey, value);
+            
             // 실시간 매칭 요청은 1분 후 만료
+            // Hash 자료구조를 사용할 경우, TTL이 '매칭 큐 전체의 생존 시간'이 된다.
+            // 즉 새로운 요청이 들어올 때마다, 해당 Key에 속한 모든 필드들의 TTL이 1분으로 재설정되기 때문에,
+            // 예를 들어 요청1이 10분전에 들어왔어도, TTL = 1분이 지나기 전 계속해서 새로운 요청이 추가될 경우,
+            // 요청1은 실질적으로 계속 살아있게 된다. 
+            // 따라서 이 부분에 대해 요청 만료 여부를 TTL로 판단하는 것이 아니라, "requestedAt" 등의
+            // 필드를 기준으로 만료 여부를 검토해야 한다.
+            // 현재 설계상, 매칭 타입이 4개이기 때문에 hash 자료구조를 이용하여 탐색 성능을 높이고자,
+            // hash+만료 시간 검증 으로 매칭 큐를 관리하려고 함.
             matchingRedisTemplate.expire(key, 1, TimeUnit.MINUTES);
 
             log.info("Saved instant matching request: {}", request.getId());

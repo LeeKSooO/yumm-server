@@ -210,9 +210,7 @@ public class MatchingServiceImpl implements MatchingService {
                 .collect(Collectors.toList());
 
         // 3. 매칭 후보가 없다면 매칭 실패(성별, 거리, 자기 자신 제외 조건을 만족하는 후보가 없는 경우)
-        if (candidates.isEmpty()) {
-            return; // 매칭 실패
-        }
+        if (candidates.isEmpty()) { return; }
 
         // 4. 벡터 유사도 계산 및 정렬
         Map<MatchingRequest, Double> similarities = new HashMap<>();
@@ -235,7 +233,7 @@ public class MatchingServiceImpl implements MatchingService {
             createMatchingResult(newRequest, List.of(bestMatch.get()));
         }
     }
-
+ 
     /**
      * 그룹 실시간 매칭을 처리합니다.
      */
