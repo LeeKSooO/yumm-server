@@ -39,7 +39,11 @@ public class SecurityConfig {
         "/swagger-ui/**",
         "/v3/api-docs/**",
         "/swagger-resources/**",
-        "/webjars/**"
+        "/webjars/**",
+
+        // 추론 서버 test api call
+        "/sendToInferenceSync",
+        "/sendToInferenceAsync"
     };
 
     @Bean
