@@ -57,6 +57,8 @@ public class UserServiceImpl implements UserService {
                 .phoneNumber(signupRequest.getPhoneNumber())
                 .profileImageUrl(signupRequest.getProfileImageUrl()) 
                 .role(defaultRole)
+                .fcmToken(signupRequest.getFcmToken())
+                .isNotificationEnabled(true) // 기본값으로 알림 활성화
                 .build();
 
         // 회원 정보 DB에 저장

@@ -1,6 +1,7 @@
 package com.example.demo.service.impl;
 
 import com.example.demo.service.MatchingService;
+import com.example.demo.service.FCMService;
 import com.example.demo.service.MatchingRedisService;
 import com.example.demo.domain.MatchingRequest;
 import com.example.demo.domain.MatchingResult;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -41,6 +43,8 @@ public class MatchingServiceImpl implements MatchingService {
     private final UserRepository userRepository;
     private final MatchingRedisService matchingRedisService;
     private final MatchingVectorUtils matchingVectorUtils;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final FCMService fcmService;
 
     /**
      * 실시간 매칭 요청을 처리합니다.
@@ -530,9 +534,14 @@ public class MatchingServiceImpl implements MatchingService {
         Map<String, Object> message = new HashMap<>();
         message.put("type", "MATCHING_SUCCESS");
         message.put("chatRoomId", chatRoomId);
-        //messagingTemplate.convertAndSend(destination, message);
+        messagingTemplate.convertAndSend(destination, message);
 
-        // TODO: FCM을 통한 푸시 알림 전송
+        // FCM을 통한 푸시 알림 전송
+        fcmService.sendMatchNotification(
+            request.getUser().getId(),
+            "매칭 성공!",
+            "새로운 매칭이 성사되었습니다. 채팅방으로 이동해보세요."
+        );
     }
 
     /**
@@ -544,9 +553,14 @@ public class MatchingServiceImpl implements MatchingService {
         Map<String, Object> message = new HashMap<>();
         message.put("type", "MATCHING_EXPIRED");
         message.put("requestId", request.getId());
-        //messagingTemplate.convertAndSend(destination, message);
+        messagingTemplate.convertAndSend(destination, message);
 
-        // TODO: FCM을 통한 푸시 알림 전송
+        // FCM을 통한 푸시 알림 전송
+        fcmService.sendMatchNotification(
+            request.getUser().getId(),
+            "매칭 만료",
+            "매칭 요청이 만료되었습니다. 새로운 매칭을 시도해보세요."
+        );
     }
 
     /**

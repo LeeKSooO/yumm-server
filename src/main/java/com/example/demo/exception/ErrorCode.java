@@ -34,6 +34,10 @@ public enum ErrorCode {
 
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅방이 존재하지 않습니다."),
 
+    USER_ALREADY_IN_CHAT_ROOM(HttpStatus.CONFLICT, "사용자가 이미 채팅방에 참여하고 있습니다."),
+
+    USER_NOT_IN_CHAT_ROOM(HttpStatus.NOT_FOUND, "사용자가 채팅방에 존재하지 않습니다."),
+
     MESSAGE_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "메시지 전송이 실패했습니다.");
 
     

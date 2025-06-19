@@ -1,6 +1,7 @@
 package com.example.demo.service.impl;
 
 import com.example.demo.service.AuthService;
+import com.example.demo.service.FcmTokenService;
 import com.example.demo.service.JwtRedisService;
 import com.example.demo.domain.User;
 import com.example.demo.dto.auth.AccessTokenResponseDto;
@@ -28,6 +29,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder           passwordEncoder;
     private final JwtUtils                  jwtUtils;
     private final JwtRedisService           jwtRedisService;
+    private final FcmTokenService        fcmTokenService; // FCM 토큰 서비스
 
     /** 사용자 로그인 처리 */
     @Override
@@ -41,6 +43,12 @@ public class AuthServiceImpl implements AuthService {
         // 비밀번호 검증
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // FCM 토큰 업데이트 (트랜잭션 내에서 처리됨)
+        if (loginRequest.getFcmToken() != null && !loginRequest.getFcmToken().equals(user.getFcmToken())) {
+            user.setFcmToken(loginRequest.getFcmToken());
+            userRepository.save(user);
         }
 
         // AccessToken 생성

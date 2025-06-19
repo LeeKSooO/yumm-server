@@ -9,7 +9,9 @@ import lombok.Setter;
 
 import com.example.demo.enums.Gender;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity // JPA 엔티티(=DB 테이블과 매핑) 
 @Table(name = "users")
@@ -58,6 +60,8 @@ public class User {
 
     @Column(nullable = false)
     private boolean isNotificationEnabled;// 알림 설정 필드 추가
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<FcmToken> fcmTokens = new HashSet<>(); // Set 사용을 권장 (중복 토큰 방지)
 
     public void updateProfile(String nickname, String profileImageUrl) {
         if (nickname == null || nickname.trim().isEmpty()) {

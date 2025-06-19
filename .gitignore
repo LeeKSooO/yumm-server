@@ -36,7 +36,13 @@ build/
 node_modules/
 
 ### Firebase ###
-**/jababchu-firebase.json
 **/firebase-*.json
 **/google-services.json
 **/GoogleService-Info.plist
+**/service-account.json
+**/firebase-credentials.json
+**/firebase-admin-sdk.json
+
+### Application Properties ###
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml

@@ -16,4 +16,6 @@ public class LoginRequest {
     private String email;
     @Schema(description = "사용자 비밀번호",example = "password123")
     private String password;
+    @Schema(description = "FCM 토큰", example = "fcm_token_example")
+    private String fcmToken;
 }

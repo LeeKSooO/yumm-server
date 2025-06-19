@@ -2,9 +2,11 @@ package com.example.demo.dto.users;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 @Getter
+@Setter
 @NoArgsConstructor
 public class SignupRequest {
 
@@ -14,7 +16,7 @@ public class SignupRequest {
     @Schema(description = "비밀번호", example = "password123")
     private String password;
 
-    @Schema(description = "닉네임", example = "sssss_mmm")
+    @Schema(description = "닉네임", example = "nickName")
     private String nickname;
 
     @Schema(description = "성별", example = "male")
@@ -28,4 +30,7 @@ public class SignupRequest {
 
     @Schema(description = "프로필 이미지 URL", example = "https://example.com/image.jpg")
     private String profileImageUrl;
+
+    @Schema(description = "FCM 토큰", example = "fcm_token_example")
+    private String fcmToken;
 } 

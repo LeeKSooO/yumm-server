@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 )
 @OpenAPIDefinition(
     security = @SecurityRequirement(name = "BearerAuth"),
-    info = @Info(title = "자밥츄", version = "v3")
+    info = @Info(title = "Yumm", version = "v3")
 )
 public class SwaggerConfig {
     

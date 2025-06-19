@@ -7,6 +7,8 @@ import com.example.demo.domain.ChatMessage;
 import com.example.demo.dto.chat.ChatRoomMessage;
 import com.example.demo.dto.chat.ChatRoomResponse;
 import com.example.demo.dto.users.ProfileResponse;
+import com.example.demo.exception.CustomException;
+import com.example.demo.exception.ErrorCode;
 import com.example.demo.repository.ChatRoomRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.ChatMessageRepository;
@@ -72,7 +74,7 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatRoomResponse createChatRoom(String roomName, String email) {
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
 
 
         ChatRoom chatRoom = ChatRoom.builder()
@@ -104,10 +106,10 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatRoomResponse joinChatRoom(Long roomId, String email) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
 
         boolean isMember = chatRoom.getMembers().stream()
             .anyMatch(member -> member.getId().equals(user.getId()));
@@ -133,7 +135,7 @@ public class ChatServiceImpl implements ChatService {
     @Transactional(readOnly = true)
     public List<ChatRoomResponse> getUserChatRooms(String email) {
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
             
         return user.getChatRooms().stream()
             .filter(ChatRoom::isActive)
@@ -151,7 +153,7 @@ public class ChatServiceImpl implements ChatService {
     public ChatRoomResponse getChatRoomInfo(Long roomId) {
         return chatRoomRepository.findById(roomId)
             .map(ChatRoomResponse::from)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
     /**
@@ -169,10 +171,10 @@ public class ChatServiceImpl implements ChatService {
         try {
             // 채팅방과 사용자 존재 여부 확인
             ChatRoom chatRoom = chatRoomRepository.findById(chatRoomMessage.getRoomId())
-                .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
             
             User sender = userRepository.findByEmail(chatRoomMessage.getSender())
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
 
             // 메시지 타임스탬프 설정
             chatRoomMessage.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -212,10 +214,10 @@ public class ChatServiceImpl implements ChatService {
     @Transactional(readOnly = true)
     public List<ChatRoomMessage> getChatHistory(Long roomId, String email) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
 
         boolean isMember = chatRoom.getMembers().stream()
             .anyMatch(member -> member.getId().equals(user.getId()));
@@ -271,7 +273,7 @@ public class ChatServiceImpl implements ChatService {
                 chatRoom.setRoomName(newRoomName);
                 return ChatRoomResponse.from(chatRoomRepository.save(chatRoom));
             })
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
     /**
@@ -285,10 +287,10 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatRoomResponse updateChatRoomNotification(Long roomId, String email, boolean isNotificationEnabled) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // TODO: 알림 설정을 저장할 별도의 엔티티나 테이블이 필요할 수 있음
         user.setNotificationEnabled(isNotificationEnabled);
@@ -307,8 +309,9 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatRoomResponse updateChatRoomReadStatus(Long roomId, String email, boolean isRead) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
-        
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() ->new CustomException(ErrorCode.USER_NOT_FOUND));
         // TODO: 읽음 상태를 저장할 별도의 엔티티나 테이블이 필요할 수 있음
         return ChatRoomResponse.from(chatRoom);
     }
@@ -322,9 +325,10 @@ public class ChatServiceImpl implements ChatService {
     @Transactional(readOnly = true)
     public List<ChatRoomResponse> getChatRoomMembers(Long roomId) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
-
-        return chatRoom.getMembers().stream()
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+            
+            
+            return chatRoom.getMembers().stream()
             .map(member -> ChatRoomResponse.builder()
                 .id(roomId)
                 .currentParticipants(List.of(ProfileResponse.from(member)))
@@ -342,16 +346,16 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatRoomResponse addChatRoomMember(Long roomId, String email) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         boolean isMember = chatRoom.getMembers().stream()
             .anyMatch(member -> member.getId().equals(user.getId()));
 
         if (isMember) {
-            throw new RuntimeException("이미 참여 중인 사용자입니다.");
+            throw new CustomException(ErrorCode.USER_ALREADY_IN_CHAT_ROOM);
         }
 
         chatRoom.getMembers().add(user);
@@ -368,17 +372,16 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatRoomResponse removeChatRoomMember(Long roomId, String email) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
-
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         boolean isMember = chatRoom.getMembers().stream()
             .anyMatch(member -> member.getId().equals(user.getId()));
 
         if (!isMember) {
-            throw new AccessDeniedException("해당 채팅방의 멤버가 아닙니다.");
+            throw new CustomException(ErrorCode.USER_NOT_IN_CHAT_ROOM);
         }
 
         chatRoom.getMembers().removeIf(member -> member.getId().equals(user.getId()));
@@ -396,10 +399,11 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void exitChatRoom(Long roomId, String email) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
-            
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
             
         // 채팅방에서 사용자 제거
         chatRoom.getMembers().remove(user);
@@ -426,9 +430,11 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void deleteChatRoom(Long roomId, String email) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+        
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
 
         // 채팅방의 소유자 확인 (여기서는 단순히 첫 번째 멤버가 소유자라고 가정)
         if (chatRoom.getMembers().isEmpty() || !chatRoom.getMembers().get(0).getId().equals(user.getId())) {
@@ -452,7 +458,7 @@ public class ChatServiceImpl implements ChatService {
                 chatRoom.setActive(isActive);
                 return ChatRoomResponse.from(chatRoomRepository.save(chatRoom));
             })
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
     /**
@@ -465,7 +471,7 @@ public class ChatServiceImpl implements ChatService {
     public void updateLastMessageId(Long roomId, Long lastMessageId) {
         // 채팅방의 마지막 메시지 ID 업데이트
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         chatRoom.setLastMessageId(lastMessageId);
         chatRoomRepository.save(chatRoom);
     }
@@ -479,7 +485,7 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void updateLastMessageTime(Long roomId, String lastMessageTime) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-            .orElseThrow(() -> new RuntimeException("채팅방을 찾을 수 없습니다."));
+            .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         chatRoom.setLastMessageTime(LocalDateTime.parse(lastMessageTime, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         chatRoomRepository.save(chatRoom);
     }

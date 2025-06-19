@@ -1,0 +1,27 @@
+# FCM (Firebase Cloud Messaging) 설정
+fcm:
+   # 재시도 관련 설정
+   retry:
+      # 최대 재시도 횟수
+      max-attempts: 3
+      # 초기 재시도 간격 (밀리초)
+      initial-interval: 1000
+      # 최대 재시도 간격 (밀리초)
+      max-interval: 10000
+      # 재시도 간격 증가 배수
+      multiplier: 2.0
+   # FCM 서버 키 (환경 변수에서 가져옴)
+   server-key: ${FCM_SERVER_KEY}
+
+# Firebase 설정
+firebase:
+   # Firebase 서비스 계정 키 파일 경로
+   # 개발 환경: src/main/resources/firebase/service-account.json
+   # 운영 환경: /etc/firebase/service-account.json
+   credentials:
+      path: ${FIREBASE_CREDENTIALS_PATH:firebase/service-account.json}
+
+# 암호화 관련 설정
+encryption:
+   # 암호화 키 (환경 변수에서 가져오며, 없을 경우 기본값 사용)
+   key: ${ENCRYPTION_KEY:your-secure-encryption-key-here}
