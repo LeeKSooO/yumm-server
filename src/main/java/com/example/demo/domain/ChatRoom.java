@@ -43,7 +43,17 @@ public class ChatRoom {
     private String roomName;
 
     // 채팅방 설명 (선택적 추가)
+    @Column(length = 500)
     private String description;
+
+    @Column(nullable = false)
+    private Long maxParticipants;   // 최대 참여자 수
+
+    @Column(nullable = false)
+    private Long currentParticipants; // 현재 참여자 수
+
+    @Column(nullable = false)
+    private String createdBy;       // 생성자
 
     @ManyToMany
     @JoinTable(
@@ -63,6 +73,8 @@ public class ChatRoom {
     protected void onCreate() {
         createdAt = LocalDateTime.now();  // 엔티티 생성 시 현재 시간 저장
         updatedAt = LocalDateTime.now();
+        currentParticipants = 1L;  // 생성 시 참여자 수는 1 (생성자)
+        isActive = true;
     }
 
     @PreUpdate

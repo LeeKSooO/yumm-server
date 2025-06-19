@@ -3,9 +3,12 @@ package com.example.demo.service.impl;
 import com.example.demo.service.UserService;
 import com.example.demo.domain.User;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.dto.auth.AuthResponseDto;
+import com.example.demo.dto.auth.LoginRequest;
 import com.example.demo.dto.users.*;
 import com.example.demo.exception.CustomException;
 import com.example.demo.exception.ErrorCode;
+import com.example.demo.service.AuthService;
 import com.example.demo.service.JwtRedisService;
 import com.example.demo.domain.UserRole;
 import com.example.demo.enums.Gender;
@@ -23,11 +26,12 @@ public class UserServiceImpl implements UserService {
     private final UserRepository  userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtRedisService jwtRedisService;
+    private final AuthService authService;  
     
     /** 회원 가입 */
     @Override
     @Transactional
-    public void signup(SignupRequest signupRequest) {
+    public AuthResponseDto signup(SignupRequest signupRequest) {
 
         // 사용자 중복 검사(이메일 존재 시 예외처리)
         validateDuplicateEmail(signupRequest.getEmail());
@@ -63,6 +67,14 @@ public class UserServiceImpl implements UserService {
 
         // 회원 정보 DB에 저장
         userRepository.save(newUser);
+
+        //회원가입 직후 자동 로그인 처리
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail(signupRequest.getEmail());
+        loginRequest.setPassword(signupRequest.getPassword());
+        loginRequest.setFcmToken(signupRequest.getFcmToken());
+
+        return authService.login(loginRequest);
     }
 
 

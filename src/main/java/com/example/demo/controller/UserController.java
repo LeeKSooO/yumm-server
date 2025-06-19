@@ -11,6 +11,7 @@ import com.example.demo.dto.users.PhoneNumberUpdateRequest;
 import com.example.demo.dto.users.ProfileResponse;
 import com.example.demo.dto.users.ProfileUpdateRequest;
 import com.example.demo.dto.users.UserInfoDetailsResponse;
+import com.example.demo.dto.auth.AuthResponseDto;
 import com.example.demo.dto.users.ChangePasswordRequest;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
@@ -18,41 +19,46 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/user") 
 @RequiredArgsConstructor
+@Tag(name = "사용자", description = "사용자 관련 API")
 public class UserController {
 
     private final UserService userService;
     
     /**
-     * 사용자 회원가입 API.
-     * 새로운 사용자 계정을 생성하고 시스템에 등록합니다.
+     * 사용자 회원가입 및 자동 로그인 API.
+     * 새로운 사용자 계정을 생성하고, 성공 시 자동으로 로그인하여 토큰을 발급합니다.
      *
-     * @param signupRequest 회원가입에 필요한 사용자 정보를 담은 DTO (이메일, 비밀번호, 닉네임 등).
-     * @return 회원가입 성공 메시지를 포함하는 응답.
+     * @param signupRequest 회원가입에 필요한 사용자 정보를 담은 DTO
+     *                     (이메일, 비밀번호, 닉네임, 성별, 나이, 전화번호, 프로필 이미지 URL, FCM 토큰)
+     * @return 회원가입 및 로그인 성공 메시지와 함께 발급된 인증 토큰 정보(AuthResponseDto)를 포함하는 응답
+     *         - accessToken: API 접근용 토큰
+     *         - refreshToken: 토큰 갱신용 토큰
+     *         - nickname: 사용자 닉네임
      */
     @PostMapping("/signup")
-    @Operation(summary = "사용자 회원가입", description = "회원가입 요청 정보를 받아 새 사용자를 등록합니다.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse
-    (
+    @Operation(summary = "사용자 회원가입", description = "회원가입 요청 정보를 받아 새 사용자를 등록하고 자동 로그인합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
-        description = "회원가입 성공 메시지를 포함하는 응답"
+        description = "회원가입 및 로그인 성공 메시지와 함께 인증 토큰 정보를 포함하는 응답",
+        content = @Content(schema = @Schema(implementation = AuthResponseDto.class))
     )
-    public ResponseEntity<ApiResponse<Void>> signup(
-    @io.swagger.v3.oas.annotations.parameters.RequestBody
-    (
-        description = "회원가입에 필요한 사용자 정보를 담은 DTO (이메일, 비밀번호, 닉네임 등)",
-        required = true,
-        content = @Content(schema = @Schema(implementation = SignupRequest.class))
-    )    
-    @RequestBody SignupRequest signupRequest) {
+    public ResponseEntity<ApiResponse<AuthResponseDto>> signup(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "회원가입에 필요한 사용자 정보를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = SignupRequest.class))
+        )    
+        @RequestBody SignupRequest signupRequest) {
         
-        userService.signup(signupRequest);
+        AuthResponseDto authResponseDto = userService.signup(signupRequest);
         
-        return ApiResponse.created("회원가입이 성공적으로 완료되었습니다.");
+        return ApiResponse.ok("회원가입 및 로그인이 성공적으로 완료되었습니다.", authResponseDto);
     }
     
 

@@ -4,11 +4,22 @@ import java.util.List;
 
 import com.example.demo.dto.chat.ChatRoomMessage;
 import com.example.demo.dto.chat.ChatRoomResponse;
+import com.example.demo.domain.ChatRoom;
 
 /**
  * 채팅 관련 비즈니스 로직을 처리하는 서비스 인터페이스
  */
 public interface ChatService {
+
+
+    /**
+     * 채팅방 생성
+     * @param roomName 채팅방 이름
+     * @param email 생성자 이메일
+     * @return 생성된 채팅방 정보
+     */
+    ChatRoomResponse createChatRoom(String roomName, String email);
+    
     /**
      * 채팅 메시지를 전송하고 저장
      * @param message 전송할 채팅 메시지
@@ -45,16 +56,9 @@ public interface ChatService {
     void exitChatRoom(Long roomId, String email);
     /**
      * 채팅방 생성
-     * @param roomName 채팅방 이름
-     * @param userId 생성자 사용자 ID
+     * @param request 채팅방 생성 요청 정보
+     * @param username 생성자 사용자 ID
      * @return 생성된 채팅방 정보
-     */
-    ChatRoomResponse createChatRoom(String roomName, String email);
-    /**
-     * 채팅방에 참여
-     * @param roomId 채팅방 ID
-     * @param userId 참여할 사용자 ID
-     * @return 채팅방 정보
      */
     ChatRoomResponse joinChatRoom(Long roomId, String email);
     /**

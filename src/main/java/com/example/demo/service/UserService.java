@@ -8,6 +8,7 @@ import com.example.demo.dto.users.PhoneNumberUpdateRequest;
 import com.example.demo.dto.users.ProfileResponse;
 import com.example.demo.dto.users.ProfileUpdateRequest;
 import com.example.demo.dto.users.UserInfoDetailsResponse;
+import com.example.demo.dto.auth.AuthResponseDto;
 import com.example.demo.dto.users.ChangePasswordRequest;
 
 /**
@@ -22,7 +23,7 @@ public interface UserService {
      *
      * @param signupRequest 회원가입에 필요한 정보를 담은 DTO
      */
-    void signup(SignupRequest signupRequest);
+    AuthResponseDto signup(SignupRequest signupRequest);
 
 
     /**

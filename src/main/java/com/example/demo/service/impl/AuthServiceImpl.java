@@ -29,7 +29,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder           passwordEncoder;
     private final JwtUtils                  jwtUtils;
     private final JwtRedisService           jwtRedisService;
-    private final FcmTokenService        fcmTokenService; // FCM 토큰 서비스
+    private final FcmTokenService           fcmTokenService; // FCM 토큰 서비스
 
     /** 사용자 로그인 처리 */
     @Override
@@ -58,9 +58,11 @@ public class AuthServiceImpl implements AuthService {
         // RefreshToken 생성 및 Redis에 저장(userId가 key값)
         String refreshToken = jwtUtils.generateRefreshToken(user.getId(),user.getEmail(),roles);
         jwtRedisService.saveRefreshToken(user.getId(), refreshToken, jwtUtils.getRefreshTokenMillis());
-       
+        
+        // 닉네임 추가
+        String nickname = user.getNickname();
         // 응답 DTO 반환
-        return AuthResponseDto.of(accessToken, refreshToken);
+        return AuthResponseDto.of(accessToken, refreshToken, nickname);
     }
 
 

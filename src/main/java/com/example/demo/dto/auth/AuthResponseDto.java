@@ -12,11 +12,13 @@ import lombok.NoArgsConstructor;
 public class AuthResponseDto {
     private String accessToken;
     private String refreshToken;
+    private String nickname;
 
-    public static AuthResponseDto of(String accessToken, String refreshToken) {
+    public static AuthResponseDto of(String accessToken, String refreshToken, String nickname) {
         return AuthResponseDto.builder()
             .accessToken(accessToken)
             .refreshToken(refreshToken)
+            .nickname(nickname)
             .build();
     }
 

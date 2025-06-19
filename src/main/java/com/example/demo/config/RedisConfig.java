@@ -22,6 +22,7 @@ import org.springframework.data.redis.listener.adapter.MessageListenerAdapter; /
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer; // 모든 자바 객체를 JSON으로 직렬화/역직렬화 (범용)
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer; // 특정 클래스나 제네릭 타입을 JSON으로 직렬화/역직렬화
 import org.springframework.data.redis.serializer.StringRedisSerializer; // 문자열을 Redis에 직렬화/역직렬화
+import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 
 import java.util.List;
 
@@ -30,13 +31,12 @@ import java.util.List;
  * Redis 연결, 데이터 직렬화 방식, Pub/Sub(발행/구독) 기능 등을 설정합니다.
  */
 @Configuration
+@EnableRedisRepositories
 public class RedisConfig {
 
-    // application.properties에서 Redis 호스트 값을 주입받습니다.
     @Value("${spring.data.redis.host}")
     private String redisHost;
-
-    // application.properties에서 Redis 포트 값을 주입받습니다.
+    
     @Value("${spring.data.redis.port}")
     private int redisPort;
 
@@ -159,5 +159,14 @@ public class RedisConfig {
     @Bean
     public ChannelTopic channelTopic() {
         return new ChannelTopic("chatroom"); // 채팅 메시지가 발행/구독될 채널 이름
+    }
+
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate() {
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(redisConnectionFactory());
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        return redisTemplate;
     }
 }
